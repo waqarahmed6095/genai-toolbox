@@ -1,21 +1,7 @@
-import asyncio
-
 import pytest
-from aiohttp import ClientSession
 import pytest_asyncio
-from langchain_core.tools import StructuredTool
 
-import os
-from unittest import mock
 from toolbox_langchain_sdk.client import ToolboxClient
-from toolbox_langchain_sdk.utils import ManifestSchema, ToolSchema, ParameterSchema, _schema_to_model
-
-
-def get_env_var(key: str) -> str:
-    v = os.environ.get(key)
-    if v is None:
-        raise ValueError(f"Must set env var {key}")
-    return v
 
 @pytest.mark.asyncio
 class TestE2EClient:
@@ -29,7 +15,7 @@ class TestE2EClient:
     async def test_load_tool(self, toolbox):
         tool = await toolbox.load_tool("get-n-rows")
         response = await tool.arun({"num_rows": "2"})
-        result = response['result']
+        result = response["result"]
 
         assert "test text 1" in result
         assert "test text 2" in result
