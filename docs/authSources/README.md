@@ -18,9 +18,40 @@ authSources:
     clientId: YOUR_GOOGLE_CLIENT_ID
 ```
 
-Tip: If you are accessing Toolbox with multiple applications, each application
-should register their own Client ID even if they use the same `kind` of auth
-provider.
+> [!TIP]
+> If you are accessing Toolbox with multiple applications, each application
+> should register their own Client ID even if they use the same `kind` of auth
+> provider.
+>
+> Here's an example:
+>
+> ```yaml
+> authSources:
+>     my_auth_app_1:
+>         kind: google
+>         client_id: YOUR_CLIENT_ID_1
+>     my_auth_app_2:
+>         kind: google
+>         client_id: YOUR_CLIENT_ID_2
+>
+> tools:
+>     my_tool:
+>         parameters:
+>             - name: user_id
+>               type: string
+>               auth_sources:
+>                   - name: my_auth_app_1
+>                     field: sub
+>                   - name: my_auth_app_2
+>                     field: sub
+>         ...
+>
+>     my_tool_no_param:
+>         auth_required:
+>             - my_auth_app_1
+>             - my_auth_app_2
+>         ...
+> ```
 
 ## Kinds of authSources
 
@@ -37,7 +68,7 @@ called
 [claims](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims).
 ID tokens can include claims such as user ID, user name, user emails etc. After
 specifying `authSources`, you can configure your tool's authenticated parameters
-by following this [guide](../tools/README.md#authenticated-parameters)
+by following this [guide](../tools/README.md#authenticated-parameters).
 
 ## Usage
 

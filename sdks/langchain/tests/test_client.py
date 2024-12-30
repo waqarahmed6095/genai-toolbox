@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, call, patch
 import aiohttp
 import pytest
 from langchain_core.tools import StructuredTool
+from pydantic import BaseModel
 
 from toolbox_langchain_sdk import ToolboxClient
 from toolbox_langchain_sdk.utils import ManifestSchema, ParameterSchema, ToolSchema
@@ -135,7 +136,17 @@ async def test_generate_tool_success():
     assert isinstance(tool, StructuredTool)
     assert tool.name == "test_tool"
     assert tool.description == "This is test tool."
-    assert tool.args_schema is not None  # Check if args_schema is generated
+    assert tool.args is not None
+
+    assert "param1" in tool.args
+    assert tool.args["param1"]["title"] == "Param1"
+    assert tool.args["param1"]["description"] == "Parameter 1"
+    assert tool.args["param1"]["anyOf"] == [{"type": "string"}, {"type": "null"}]
+
+    assert "param2" in tool.args
+    assert tool.args["param2"]["title"] == "Param2"
+    assert tool.args["param2"]["description"] == "Parameter 2"
+    assert tool.args["param2"]["anyOf"] == [{"type": "integer"}, {"type": "null"}]
 
 
 @pytest.mark.asyncio
@@ -156,7 +167,7 @@ async def test_load_tool_success(mock_generate_tool, mock_load_manifest):
     mock_generate_tool.return_value = StructuredTool(
         name="test_tool",
         description="This is test tool.",
-        args_schema=None,
+        args_schema=BaseModel,
         coroutine=AsyncMock(),
     )
 
@@ -191,13 +202,13 @@ async def test_load_toolset_success(mock_generate_tool, mock_load_manifest):
         StructuredTool(
             name="test_tool",
             description="This is test tool.",
-            args_schema=None,
+            args_schema=BaseModel,
             coroutine=AsyncMock(),
         ),
         StructuredTool(
             name="test_tool2",
             description="This is test tool 2.",
-            args_schema=None,
+            args_schema=BaseModel,
             coroutine=AsyncMock(),
         ),
     ] * 2
@@ -258,7 +269,7 @@ async def test_generate_tool_invoke(mock_invoke_tool):
     tool = client._generate_tool("test_tool", ManifestSchema(**manifest_data))
 
     # Call the tool function with some arguments
-    result = await tool.coroutine(param1="test_value", param2=123)
+    result = await tool.ainvoke({"param1": "test_value", "param2": 123})
 
     # Assert that _invoke_tool was called with the correct parameters
     mock_invoke_tool.assert_called_once_with(
@@ -336,7 +347,7 @@ async def test_validate_auth(tool_param_auth, id_token_getters, expected_result)
     client = ToolboxClient("http://test-url")
     client._tool_param_auth = tool_param_auth
     for auth_source, get_id_token in id_token_getters.items():
-        client.add_auth_header(auth_source, get_id_token)
+        client.add_auth_token(auth_source, get_id_token)
     assert client._validate_auth("tool_name") == expected_result
 
 
@@ -543,7 +554,7 @@ async def test_process_auth_params(
 @pytest.mark.asyncio
 @patch("toolbox_langchain_sdk.client._load_manifest")
 @pytest.mark.parametrize(
-    "params, auth_headers, expected_tool_param_auth",
+    "params, auth_tokens, expected_tool_param_auth",
     [
         (
             [
@@ -552,7 +563,7 @@ async def test_process_auth_params(
             ],
             {},
             {},
-        ),  # No auth headers
+        ),  # No auth tokens
         (
             [
                 ParameterSchema(name="param1", type="string", description="Test param"),
@@ -565,13 +576,13 @@ async def test_process_auth_params(
             ],
             {"auth_source1": lambda: "test_token"},
             {"tool_name": {"param2": ["auth_source1"]}},
-        ),  # With auth headers
+        ),  # With auth tokens
     ],
 )
 async def test_load_tool(
-    mock_load_manifest, params, auth_headers, expected_tool_param_auth
+    mock_load_manifest, params, auth_tokens, expected_tool_param_auth
 ):
-    """Test load_tool with and without auth headers."""
+    """Test load_tool with and without auth tokens."""
     client = ToolboxClient("http://test-url")
 
     # Replace with your desired mock manifest data
@@ -585,7 +596,7 @@ async def test_load_tool(
         },
     )
 
-    tool = await client.load_tool("tool_name", auth_headers)
+    tool = await client.load_tool("tool_name", auth_tokens)
 
     assert isinstance(tool, StructuredTool)
     assert tool.name == "tool_name"
@@ -594,9 +605,44 @@ async def test_load_tool(
 
 
 @pytest.mark.asyncio
+@patch("toolbox_langchain_sdk.client.ToolboxClient._load_tool_manifest")
+@patch("toolbox_langchain_sdk.client.ToolboxClient._generate_tool")
+async def test_load_tool_deprecation_warning(mock_generate_tool, mock_load_manifest):
+    """Test load_tool with deprecated auth_headers argument."""
+    client = ToolboxClient("https://my-toolbox.com", session=aiohttp.ClientSession())
+    mock_load_manifest.return_value = ManifestSchema(**manifest_data)
+    mock_generate_tool.return_value = StructuredTool(
+        name="test_tool",
+        description="This is test tool.",
+        args_schema=BaseModel,
+        coroutine=AsyncMock(),
+    )
+
+    # Test with auth_headers and auth_tokens
+    with pytest.warns(
+        DeprecationWarning,
+        match="Both `auth_tokens` and `auth_headers` are provided. `auth_headers` is deprecated, and `auth_tokens` will be used.",
+    ):
+        await client.load_tool(
+            tool_name="test_tool",
+            auth_tokens={"auth_source1": lambda: "test_token"},
+            auth_headers={"auth_source1": lambda: "test_token"},
+        )
+
+    # Test with only auth_headers
+    with pytest.warns(
+        DeprecationWarning,
+        match="Argument `auth_headers` is deprecated. Use `auth_tokens` instead.",
+    ):
+        await client.load_tool(
+            tool_name="test_tool", auth_headers={"auth_source1": lambda: "test_token"}
+        )
+
+
+@pytest.mark.asyncio
 @patch("toolbox_langchain_sdk.client._load_manifest")
 @pytest.mark.parametrize(
-    "params, auth_headers, expected_tool_param_auth, expected_num_tools",
+    "params, auth_tokens, expected_tool_param_auth, expected_num_tools",
     [
         (
             [
@@ -606,7 +652,7 @@ async def test_load_tool(
             {},
             {},
             1,
-        ),  # No auth headers
+        ),  # No auth tokens
         (
             [
                 ParameterSchema(name="param1", type="string", description="Test param"),
@@ -620,17 +666,17 @@ async def test_load_tool(
             {"auth_source1": lambda: "test_token"},
             {"tool_name": {"param2": ["auth_source1"]}},
             1,
-        ),  # With auth headers
+        ),  # With auth tokens
     ],
 )
 async def test_load_toolset(
     mock_load_manifest,
     params,
-    auth_headers,
+    auth_tokens,
     expected_tool_param_auth,
     expected_num_tools,
 ):
-    """Test load_toolset with and without toolset name and auth headers."""
+    """Test load_toolset with and without toolset name and auth tokens."""
     client = ToolboxClient("http://test-url")
 
     # Replace with your desired mock manifest data
@@ -644,12 +690,48 @@ async def test_load_toolset(
         },
     )
 
-    tools = await client.load_toolset("toolset_name", auth_headers)
+    tools = await client.load_toolset("toolset_name", auth_tokens)
 
     assert isinstance(tools, list)
     assert len(tools) == expected_num_tools
     assert all(isinstance(tool, StructuredTool) for tool in tools)
     assert client._tool_param_auth == expected_tool_param_auth
+
+
+@pytest.mark.asyncio
+@patch("toolbox_langchain_sdk.client.ToolboxClient._load_toolset_manifest")
+@patch("toolbox_langchain_sdk.client.ToolboxClient._generate_tool")
+async def test_load_toolset_deprecation_warning(mock_generate_tool, mock_load_manifest):
+    """Test load_toolset with deprecated auth_headers argument."""
+    client = ToolboxClient("https://my-toolbox.com", session=aiohttp.ClientSession())
+    mock_load_manifest.return_value = ManifestSchema(**manifest_data)
+    mock_generate_tool.return_value = StructuredTool(
+        name="test_tool",
+        description="This is test tool.",
+        args_schema=BaseModel,
+        coroutine=AsyncMock(),
+    )
+
+    # Test with auth_headers and auth_tokens
+    with pytest.warns(
+        DeprecationWarning,
+        match="Both `auth_tokens` and `auth_headers` are provided. `auth_headers` is deprecated, and `auth_tokens` will be used.",
+    ):
+        await client.load_toolset(
+            toolset_name="test_toolset",
+            auth_tokens={"auth_source1": lambda: "test_token"},
+            auth_headers={"auth_source1": lambda: "test_token"},
+        )
+
+    # Test with only auth_headers
+    with pytest.warns(
+        DeprecationWarning,
+        match="Argument `auth_headers` is deprecated. Use `auth_tokens` instead.",
+    ):
+        await client.load_toolset(
+            toolset_name="test_toolset",
+            auth_headers={"auth_source1": lambda: "test_token"},
+        )
 
 
 @pytest.mark.asyncio
@@ -732,14 +814,17 @@ async def test_generate_tool(
     client = ToolboxClient("http://test-url")
     client._tool_param_auth = tool_param_auth
     for auth_source, get_id_token in id_token_getters.items():
-        client.add_auth_header(auth_source, get_id_token)
+        client.add_auth_token(auth_source, get_id_token)
 
     tool = client._generate_tool("tool_name", manifest)
 
     assert isinstance(tool, StructuredTool)
     assert tool.name == "tool_name"
     assert tool.description == "Test tool description"
-    assert tool.args_schema.__name__ == "tool_name"
+    assert "param1" in tool.args
+    assert tool.args["param1"]["title"] == "Param1"
+    assert tool.args["param1"]["description"] == "Test param"
+    assert tool.args["param1"]["anyOf"] == [{"type": "string"}, {"type": "null"}]
 
     # Call the tool function to check if _invoke_tool is called
     if expected_invoke_tool_call:
@@ -829,3 +914,15 @@ async def test_del_loop_not_running(mock_get_event_loop):
     await asyncio.sleep(0.1)
 
     loop.close()
+
+
+@pytest.mark.asyncio
+async def test_add_auth_header_deprecation_warning():
+    """Test add_auth_header deprecation warning."""
+    client = ToolboxClient("https://my-toolbox.com", session=aiohttp.ClientSession())
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="Please use `add_auth_token` instead.",
+    ):
+        client.add_auth_header("auth_source1", lambda: "test_token")

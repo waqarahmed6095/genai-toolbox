@@ -1,4 +1,4 @@
-//go:build integration && cloudsql
+//go:build integration && postgres
 
 // Copyright 2024 Google LLC
 //
@@ -30,33 +30,30 @@ import (
 )
 
 var (
-	CLOUD_SQL_POSTGRES_PROJECT  = os.Getenv("CLOUD_SQL_POSTGRES_PROJECT")
-	CLOUD_SQL_POSTGRES_REGION   = os.Getenv("CLOUD_SQL_POSTGRES_REGION")
-	CLOUD_SQL_POSTGRES_INSTANCE = os.Getenv("CLOUD_SQL_POSTGRES_INSTANCE")
-	CLOUD_SQL_POSTGRES_DATABASE = os.Getenv("CLOUD_SQL_POSTGRES_DATABASE")
-	CLOUD_SQL_POSTGRES_USER     = os.Getenv("CLOUD_SQL_POSTGRES_USER")
-	CLOUD_SQL_POSTGRES_PASS     = os.Getenv("CLOUD_SQL_POSTGRES_PASS")
+	POSTGRES_DATABASE = os.Getenv("POSTGRES_DATABASE")
+	POSTGRES_HOST     = os.Getenv("POSTGRES_HOST")
+	POSTGRES_PORT     = os.Getenv("POSTGRES_PORT")
+	POSTGRES_USER     = os.Getenv("POSTGRES_USER")
+	POSTGRES_PASS     = os.Getenv("POSTGRES_PASS")
 )
 
-func requireCloudSQLPgVars(t *testing.T) {
+func requirePostgresVars(t *testing.T) {
 	switch "" {
-	case CLOUD_SQL_POSTGRES_PROJECT:
-		t.Fatal("'CLOUD_SQL_POSTGRES_PROJECT' not set")
-	case CLOUD_SQL_POSTGRES_REGION:
-		t.Fatal("'CLOUD_SQL_POSTGRES_REGION' not set")
-	case CLOUD_SQL_POSTGRES_INSTANCE:
-		t.Fatal("'CLOUD_SQL_POSTGRES_INSTANCE' not set")
-	case CLOUD_SQL_POSTGRES_DATABASE:
-		t.Fatal("'CLOUD_SQL_POSTGRES_DATABASE' not set")
-	case CLOUD_SQL_POSTGRES_USER:
-		t.Fatal("'CLOUD_SQL_POSTGRES_USER' not set")
-	case CLOUD_SQL_POSTGRES_PASS:
-		t.Fatal("'CLOUD_SQL_POSTGRES_PASS' not set")
+	case POSTGRES_DATABASE:
+		t.Fatal("'POSTGRES_DATABASE' not set")
+	case POSTGRES_HOST:
+		t.Fatal("'POSTGRES_HOST' not set")
+	case POSTGRES_PORT:
+		t.Fatal("'POSTGRES_PORT' not set")
+	case POSTGRES_USER:
+		t.Fatal("'POSTGRES_USER' not set")
+	case POSTGRES_PASS:
+		t.Fatal("'POSTGRES_PASS' not set")
 	}
 }
 
-func TestCloudSQLPostgres(t *testing.T) {
-	requireCloudSQLPgVars(t)
+func TestPostgres(t *testing.T) {
+	requirePostgresVars(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -66,13 +63,12 @@ func TestCloudSQLPostgres(t *testing.T) {
 	toolsFile := map[string]any{
 		"sources": map[string]any{
 			"my-pg-instance": map[string]any{
-				"kind":     "cloud-sql-postgres",
-				"project":  CLOUD_SQL_POSTGRES_PROJECT,
-				"instance": CLOUD_SQL_POSTGRES_INSTANCE,
-				"region":   CLOUD_SQL_POSTGRES_REGION,
-				"database": CLOUD_SQL_POSTGRES_DATABASE,
-				"user":     CLOUD_SQL_POSTGRES_USER,
-				"password": CLOUD_SQL_POSTGRES_PASS,
+				"kind":     "postgres",
+				"host":     POSTGRES_HOST,
+				"port":     POSTGRES_PORT,
+				"database": POSTGRES_DATABASE,
+				"user":     POSTGRES_USER,
+				"password": POSTGRES_PASS,
 			},
 		},
 		"tools": map[string]any{

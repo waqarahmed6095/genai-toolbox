@@ -1,17 +1,18 @@
 import asyncio
 import json
+import re
 import warnings
 from typing import Union
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
 import pytest
-from aiohttp import ClientSession
 from pydantic import BaseModel
 
 from toolbox_langchain_sdk.utils import (
     ParameterSchema,
     _convert_none_to_empty_string,
+    _get_auth_headers,
     _invoke_tool,
     _load_manifest,
     _parse_type,
@@ -91,8 +92,6 @@ class TestUtils:
         with pytest.raises(Exception) as e:
             session = aiohttp.ClientSession()
             await _load_manifest(URL, session)
-            await session.close()
-            mock_get.assert_called_once_with(URL)
 
         mock_get.assert_called_once_with(URL)
         assert isinstance(e.value, json.JSONDecodeError)
@@ -111,14 +110,12 @@ class TestUtils:
         with pytest.raises(Exception) as e:
             session = aiohttp.ClientSession()
             await _load_manifest(URL, session)
-            await session.close()
-            mock_get.assert_called_once_with(URL)
 
         mock_get.assert_called_once_with(URL)
         assert isinstance(e.value, ValueError)
-        assert (
-            str(e.value)
-            == "Invalid JSON data from https://my-toolbox.com/test: 2 validation errors for ManifestSchema\nserverVersion\n  Field required [type=missing, input_value={'something': 'invalid'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing\ntools\n  Field required [type=missing, input_value={'something': 'invalid'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing"
+        assert re.match(
+            r"Invalid JSON data from https://my-toolbox.com/test: 2 validation errors for ManifestSchema\nserverVersion\n  Field required \[type=missing, input_value={'something': 'invalid'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/\d+\.\d+/v/missing\ntools\n  Field required \[type=missing, input_value={'something': 'invalid'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/\d+\.\d+/v/missing",
+            str(e.value),
         )
 
     @pytest.mark.asyncio
@@ -132,7 +129,6 @@ class TestUtils:
         with pytest.raises(aiohttp.ClientError) as exc_info:
             session = aiohttp.ClientSession()
             await _load_manifest(URL, session)
-            await session.close()
         mock_get.assert_called_once_with(URL)
         assert exc_info.value == error
 
@@ -180,7 +176,11 @@ class TestUtils:
         mock_post.return_value.__aenter__.return_value = mock_response
 
         result = await _invoke_tool(
-            "http://localhost:8000", ClientSession(), "tool_name", {"input": "data"}, {}
+            "http://localhost:8000",
+            aiohttp.ClientSession(),
+            "tool_name",
+            {"input": "data"},
+            {},
         )
 
         mock_post.assert_called_once_with(
@@ -204,7 +204,7 @@ class TestUtils:
         ):
             result = await _invoke_tool(
                 "http://localhost:8000",
-                ClientSession(),
+                aiohttp.ClientSession(),
                 "tool_name",
                 {"input": "data"},
                 {"my_test_auth": lambda: "fake_id_token"},
@@ -220,7 +220,7 @@ class TestUtils:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
     async def test_invoke_tool_secure_with_auth(self, mock_post):
-        session = ClientSession()
+        session = aiohttp.ClientSession()
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
         mock_response.json = AsyncMock(return_value={"key": "value"})
@@ -247,3 +247,11 @@ class TestUtils:
         input_dict = {"a": None, "b": 123}
         expected_output = {"a": "", "b": 123}
         assert _convert_none_to_empty_string(input_dict) == expected_output
+
+    def test_get_auth_headers_deprecation_warning(self):
+        """Test _get_auth_headers deprecation warning."""
+        with pytest.warns(
+            DeprecationWarning,
+            match=r"Call to deprecated function \(or staticmethod\) _get_auth_headers\. \(Please use `_get_auth_tokens` instead\.\)$",
+        ):
+            _get_auth_headers({"auth_source1": lambda: "test_token"})
