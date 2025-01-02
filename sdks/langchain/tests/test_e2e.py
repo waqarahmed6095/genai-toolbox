@@ -1,7 +1,6 @@
 import conftest as conftest
 import pytest
 import pytest_asyncio
-import json
 
 from toolbox_langchain_sdk.client import ToolboxClient
 
@@ -11,7 +10,7 @@ from toolbox_langchain_sdk.client import ToolboxClient
 class TestE2EClient:
     @pytest_asyncio.fixture(scope="function")
     async def toolbox(self):
-        toolbox = ToolboxClient("http://localhost:5000")
+        toolbox = ToolboxClient("https://toolbox-1025562370644.us-central1.run.app")
         yield toolbox
         await toolbox.close()
 
@@ -47,12 +46,12 @@ class TestE2EClient:
 
     @pytest.mark.asyncio
     async def test_load_tool_auth(self, toolbox):
-        toolbox.add_auth_header("my-test-auth", lambda: "2")
+        # toolbox.add_auth_header("my-test-auth", get_id_token)
         tool = await toolbox.load_tool(
             "get-row-by-id-auth",
-            # auth_headers={"my-test-auth": lambda: "2"}
+            auth_tokens={"my-test-auth": get_id_token}
         )
-        # response = await tool.arun({"table_name": "test_table"})
+        print("Tool definition", tool)
         response = await tool.arun({})
 
         result = response["result"]
