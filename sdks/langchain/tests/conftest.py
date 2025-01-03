@@ -12,6 +12,7 @@ from google.cloud import artifactregistry_v1, secretmanager
 # Define the hostname for the Artifact Registry
 ARTIFACT_REGISTRY_HOSTNAME = "us-central1-docker.pkg.dev"
 
+
 # Get environment variables
 def get_env_var(key: str) -> str:
     v = os.environ.get(key)
@@ -28,6 +29,7 @@ def toolbox_version() -> str:
 @pytest_asyncio.fixture(scope="session")
 def project_id() -> str:
     return get_env_var("GOOGLE_CLOUD_PROJECT")
+
 
 def access_secret_version(
     project_id: str, secret_id: str, version_id: str = "latest"
@@ -70,6 +72,7 @@ def tools_file_path(project_id: str) -> Generator[str]:
     tools_file_path = create_tmpfile(tools_manifest)
     yield tools_file_path
     os.remove(tools_file_path)
+
 
 def pull_image_from_gar_with_sdk(
     hostname: str,
@@ -114,7 +117,7 @@ def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator:
     try:
         print("Opening toolbox server process...")
         toolbox_server = subprocess.Popen(
-            ["../../toolbox", "--tools_file", tools_file_path]
+            ["./toolbox", "--tools_file", tools_file_path]
         )
         # Wait for server to start
         time.sleep(10)
