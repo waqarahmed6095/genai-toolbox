@@ -1,9 +1,11 @@
 import pytest
 import pytest_asyncio
+import conftest as conftest
 
 from toolbox_langchain_sdk.client import ToolboxClient
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("toolbox_server")
 class TestE2EClient:
     @pytest_asyncio.fixture(scope="function")
     async def toolbox(self):
