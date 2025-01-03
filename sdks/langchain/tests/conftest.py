@@ -68,7 +68,9 @@ def create_tmpfile(content: str) -> str:
 
 @pytest_asyncio.fixture(scope="session")
 def tools_file_path(project_id: str) -> Generator[str]:
-    tools_manifest = access_secret_version(project_id=project_id, secret_id="tools")
+    tools_manifest = access_secret_version(
+        project_id=project_id, secret_id="sdk_testing_tools"
+    )
     tools_file_path = create_tmpfile(tools_manifest)
     yield tools_file_path
     os.remove(tools_file_path)
