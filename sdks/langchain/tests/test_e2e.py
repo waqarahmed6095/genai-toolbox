@@ -20,9 +20,9 @@ class TestE2EClient:
         response = await tool.arun({"num_rows": "2"})
         result = response["result"]
 
-        assert "test text 1" in result
-        assert "test text 2" in result
-        assert "test text 3" not in result
+        assert "row1" in result
+        assert "row2" in result
+        assert "row3" not in result
 
     @pytest.mark.asyncio
     async def test_load_toolset_all(self, toolbox):
