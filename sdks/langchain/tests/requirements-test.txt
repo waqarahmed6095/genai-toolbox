@@ -1,0 +1,2 @@
+google-cloud-secret-manager==2.22.0
+google-cloud-artifact-registry==1.14.0
