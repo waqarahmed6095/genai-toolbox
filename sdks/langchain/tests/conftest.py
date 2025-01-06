@@ -92,7 +92,9 @@ def download_blob(
 def get_toolbox_binary_url(toolbox_version: str) -> str:
     """Constructs the GCS path to the toolbox binary."""
     os_system = platform.system().lower()
-    arch = 'arm64' if os_system == 'darwin' and platform.machine() == 'arm64' else 'amd64'
+    arch = (
+        "arm64" if os_system == "darwin" and platform.machine() == "arm64" else "amd64"
+    )
     return f"v{toolbox_version}/{os_system}/{arch}/toolbox"
 
 
