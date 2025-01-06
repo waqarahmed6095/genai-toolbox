@@ -1,24 +1,22 @@
 from __future__ import annotations
 
 import os
+import platform
 import subprocess
 import tempfile
 import time
 from typing import Generator
 
 import pytest_asyncio
-from google.cloud import artifactregistry_v1, secretmanager
-
-# Define the hostname for the Artifact Registry
-ARTIFACT_REGISTRY_HOSTNAME = "us-central1-docker.pkg.dev"
+from google.cloud import secretmanager, storage
 
 
 # Get environment variables
 def get_env_var(key: str) -> str:
-    v = os.environ.get(key)
-    if v is None:
+    value = os.environ.get(key)
+    if value is None:
         raise ValueError(f"Must set env var {key}")
-    return v
+    return value
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -68,6 +66,7 @@ def create_tmpfile(content: str) -> str:
 
 @pytest_asyncio.fixture(scope="session")
 def tools_file_path(project_id: str) -> Generator[str]:
+    """Provides a temporary file path containing the tools manifest."""
     tools_manifest = access_secret_version(
         project_id=project_id, secret_id="sdk_testing_tools"
     )
@@ -76,35 +75,25 @@ def tools_file_path(project_id: str) -> Generator[str]:
     os.remove(tools_file_path)
 
 
-def pull_image_from_gar_with_sdk(
-    hostname: str,
-    project_id: str,
-    repository: str,
-    image: str,
-    toolbox_version: str = "latest",
+def download_blob(
+    bucket_name: str, source_blob_name: str, destination_file_name: str
 ) -> None:
-    """
-    Pulls a Docker image from Google Artifact Registry using the Artifact Registry SDK.
+    """Downloads a blob from a gcs bucket."""
 
-    Args:
-        hostname: The hostname of the Artifact Registry.
-        project_id: The ID of the GCP project.
-        repository: The name of the repository.
-        image: The name of the image.
-        toolbox_version: The version of toolbox to pull (defaults to "latest").
-    """
-    try:
-        image_name = f"{hostname}/{project_id}/{repository}/{image}:{toolbox_version}"
-        client = artifactregistry_v1.ArtifactRegistryClient()
-        repository_name = f"projects/{project_id}/locations/{hostname.split('-')[0]}/repositories/{repository}"
-        image_path = f"{repository_name}/dockerImages/{image}"
+    storage_client = storage.Client()
 
-        request = artifactregistry_v1.GetDockerImageRequest(name=image_path)
-        client.get_docker_image(request=request)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    blob.download_to_filename(destination_file_name)
 
-        print(f"Successfully pulled image: {image_name}")
-    except Exception as e:
-        print(f"Error pulling image: {e}")
+    print(f"Blob {source_blob_name} downloaded to {destination_file_name}.")
+
+
+def get_toolbox_binary_url(toolbox_version: str) -> str:
+    """Constructs the GCS path to the toolbox binary."""
+    operating_system = platform.system().lower()
+    architecture = platform.machine()
+    return f"v{toolbox_version}/{operating_system}/{architecture}/toolbox"
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -112,12 +101,14 @@ def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator:
     """
     Starts the toolbox server as a subprocess.
     """
-    print("Pulling toolbox image from Google Artifact Registry...")
-    pull_image_from_gar_with_sdk(
-        ARTIFACT_REGISTRY_HOSTNAME, "database-toolbox", "toolbox", toolbox_version
-    )
+    print("Pulling toolbox binary from gcs bucket...")
+    source_blob_name = get_toolbox_binary_url(toolbox_version)
+    download_blob("genai-toolbox", source_blob_name, "toolbox")
+
     try:
         print("Opening toolbox server process...")
+        # Make toolbox executable
+        os.chmod("toolbox", 0o700)
         toolbox_server = subprocess.Popen(
             ["./toolbox", "--tools_file", tools_file_path]
         )
@@ -130,5 +121,7 @@ def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator:
         print(e.stdout.decode("utf-8"))
         raise RuntimeError(f"{e}\n\n{e.stderr.decode('utf-8')}") from e
     yield
+
+    # Clean up toolbox server
     toolbox_server.terminate()
     toolbox_server.wait()
