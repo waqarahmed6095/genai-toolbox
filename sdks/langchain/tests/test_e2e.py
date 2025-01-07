@@ -4,7 +4,6 @@ import pytest_asyncio
 
 from toolbox_langchain_sdk.client import ToolboxClient
 
-
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("toolbox_server")
 class TestE2EClient:
@@ -27,10 +26,10 @@ class TestE2EClient:
     @pytest.mark.asyncio
     async def test_load_toolset_all(self, toolbox):
         toolset = await toolbox.load_toolset()
-        assert len(toolset) == 2
-        tool_names = ["get-n-rows", "get-row-by-id"]
-        assert toolset[0].name in tool_names
-        assert toolset[1].name in tool_names
+        assert len(toolset) == 3
+        tool_names = ["get-n-rows", "get-row-by-id", "get-row-by-id-auth"]
+        for tool in toolset:
+            assert tool.name in tool_names
 
     @pytest.mark.asyncio
     async def test_load_toolset_single(self, toolbox):
