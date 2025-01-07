@@ -11,38 +11,19 @@ import pytest_asyncio
 from google.cloud import secretmanager, storage
 
 
-# Get environment variables
+#### Define Utility Functions
 def get_env_var(key: str) -> str:
+    """Gets environment variables."""
     value = os.environ.get(key)
     if value is None:
         raise ValueError(f"Must set env var {key}")
     return value
 
 
-@pytest_asyncio.fixture(scope="session")
-def toolbox_version() -> str:
-    return get_env_var("TOOLBOX_VERSION")
-
-
-@pytest_asyncio.fixture(scope="session")
-def project_id() -> str:
-    return get_env_var("GOOGLE_CLOUD_PROJECT")
-
-
 def access_secret_version(
     project_id: str, secret_id: str, version_id: str = "latest"
 ) -> str:
-    """
-    Accesses the payload of a given secret version from Secret Manager.
-
-    Args:
-        project_id: The ID of the GCP project.
-        secret_id: The ID of the secret.
-        version_id: The ID of the secret version (defaults to "latest").
-
-    Returns:
-        The payload of the secret version as a string.
-    """
+    """Accesses the payload of a given secret version from Secret Manager."""
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
     response = client.access_secret_version(request={"name": name})
@@ -50,35 +31,16 @@ def access_secret_version(
 
 
 def create_tmpfile(content: str) -> str:
-    """
-    Creates a temporary file with the given content.
-
-    Args:
-        content: The content to write to the temporary file.
-
-    Returns:
-        The path to the temporary file.
-    """
+    """Creates a temporary file with the given content."""
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as tmpfile:
         tmpfile.write(content)
         return tmpfile.name
 
 
-@pytest_asyncio.fixture(scope="session")
-def tools_file_path(project_id: str) -> Generator[str]:
-    """Provides a temporary file path containing the tools manifest."""
-    tools_manifest = access_secret_version(
-        project_id=project_id, secret_id="sdk_testing_tools"
-    )
-    tools_file_path = create_tmpfile(tools_manifest)
-    yield tools_file_path
-    os.remove(tools_file_path)
-
-
 def download_blob(
     bucket_name: str, source_blob_name: str, destination_file_name: str
 ) -> None:
-    """Downloads a blob from a gcs bucket."""
+    """Downloads a blob from a GCS bucket."""
 
     storage_client = storage.Client()
 
@@ -98,19 +60,40 @@ def get_toolbox_binary_url(toolbox_version: str) -> str:
     return f"v{toolbox_version}/{os_system}/{arch}/toolbox"
 
 
+#### Define Fixtures
+@pytest_asyncio.fixture(scope="session")
+def project_id() -> str:
+    return get_env_var("GOOGLE_CLOUD_PROJECT")
+
+
+@pytest_asyncio.fixture(scope="session")
+def toolbox_version() -> str:
+    return get_env_var("TOOLBOX_VERSION")
+
+
+@pytest_asyncio.fixture(scope="session")
+def tools_file_path(project_id: str) -> Generator[str]:
+    """Provides a temporary file path containing the tools manifest."""
+    tools_manifest = access_secret_version(
+        project_id=project_id, secret_id="sdk_testing_tools"
+    )
+    tools_file_path = create_tmpfile(tools_manifest)
+    yield tools_file_path
+    os.remove(tools_file_path)
+
+
 @pytest_asyncio.fixture(scope="session")
 def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator:
-    """
-    Starts the toolbox server as a subprocess.
-    """
-    print("Pulling toolbox binary from gcs bucket...")
+    """Starts the toolbox server as a subprocess."""
+    print("Downloading toolbox binary from gcs bucket...")
     source_blob_name = get_toolbox_binary_url(toolbox_version)
     download_blob("genai-toolbox", source_blob_name, "toolbox")
-
+    print("Toolbox binary downloaded successfully.")
     try:
         print("Opening toolbox server process...")
         # Make toolbox executable
         os.chmod("toolbox", 0o700)
+        # Run toolbox binary
         toolbox_server = subprocess.Popen(
             ["./toolbox", "--tools_file", tools_file_path]
         )
