@@ -17,7 +17,7 @@ class TestE2EClient:
     @pytest.mark.asyncio
     async def test_load_tool(self, toolbox):
         tool = await toolbox.load_tool("get-n-rows")
-        response = await tool.arun({"num_rows": "2"})
+        response = await tool.ainvoke({"num_rows": "2"})
         result = response["result"]
 
         assert "row1" in result
