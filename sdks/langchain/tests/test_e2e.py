@@ -1,4 +1,3 @@
-import conftest as conftest
 import pytest
 import pytest_asyncio
 
