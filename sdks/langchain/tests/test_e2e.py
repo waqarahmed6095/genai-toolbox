@@ -17,6 +17,7 @@ import pytest_asyncio
 
 from toolbox_langchain_sdk.client import ToolboxClient
 
+
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("toolbox_server")
 class TestE2EClient:
