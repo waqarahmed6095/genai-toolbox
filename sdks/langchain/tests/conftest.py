@@ -142,9 +142,7 @@ def auth_token2(project_id: str) -> str:
 
 @pytest_asyncio.fixture(scope="session")
 def toolbox_server(
-    tmp_path_factory: pytest.TempPathFactory,
-    toolbox_version: str,
-    tools_file_path: str
+    tmp_path_factory: pytest.TempPathFactory, toolbox_version: str, tools_file_path: str
 ) -> Generator:
     """Starts the toolbox server as a subprocess."""
     # Get a temp dir for toolbox data
