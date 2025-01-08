@@ -143,14 +143,10 @@ def auth_token2(project_id: str) -> str:
 def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator:
     """Starts the toolbox server as a subprocess."""
     # Get toolbox binary
-    if toolbox_version == 'dev':
+    if toolbox_version == "dev":
         print("Compiling the current dev toolbox version...")
-        subprocess.Popen(
-            ["go", "get", "./..."]
-        )
-        subprocess.Popen(
-            ["go", "build", "-o", "toolbox"]
-        )
+        subprocess.Popen(["go", "get", "./..."])
+        subprocess.Popen(["go", "build", "-o", "toolbox"])
         # Wait for compilation
         time.sleep(5)
         print("Toolbox binary compiled successfully.")
@@ -159,7 +155,7 @@ def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator:
         source_blob_name = get_toolbox_binary_url(toolbox_version)
         download_blob("genai-toolbox", source_blob_name, "toolbox")
         print("Toolbox binary downloaded successfully.")
-    
+
     # Run toolbox binary
     try:
         print("Opening toolbox server process...")
