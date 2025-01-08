@@ -7,7 +7,9 @@ import tempfile
 import time
 from typing import Generator
 
+import google
 import pytest_asyncio
+from google.auth import compute_engine
 from google.cloud import secretmanager, storage
 
 
@@ -60,6 +62,29 @@ def get_toolbox_binary_url(toolbox_version: str) -> str:
     return f"v{toolbox_version}/{os_system}/{arch}/toolbox"
 
 
+def auth_token(client_id: str) -> str:
+    """Retrieves an authentication token."""
+    try:
+        # Try getting the token using gcloud (for local development)
+        result = subprocess.run(
+            ["gcloud", "auth", "print-identity-token"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # If gcloud fails or is not found, use the metadata server
+        request = google.auth.transport.requests.Request()
+        credentials = compute_engine.IDTokenCredentials(
+            request=request,
+            target_audience=client_id,
+            use_metadata_identity_endpoint=True,
+        )
+        credentials.refresh(request)
+        return credentials.token
+
+
 #### Define Fixtures
 @pytest_asyncio.fixture(scope="session")
 def project_id() -> str:
@@ -80,6 +105,22 @@ def tools_file_path(project_id: str) -> Generator[str]:
     tools_file_path = create_tmpfile(tools_manifest)
     yield tools_file_path
     os.remove(tools_file_path)
+
+
+@pytest_asyncio.fixture(scope="session")
+def auth_token1(project_id: str) -> str:
+    client_id = access_secret_version(
+        project_id=project_id, secret_id="sdk_testing_client1"
+    )
+    return auth_token(client_id)
+
+
+@pytest_asyncio.fixture(scope="session")
+def auth_token2(project_id: str) -> str:
+    client_id = access_secret_version(
+        project_id=project_id, secret_id="sdk_testing_client2"
+    )
+    return auth_token(client_id)
 
 
 @pytest_asyncio.fixture(scope="session")
