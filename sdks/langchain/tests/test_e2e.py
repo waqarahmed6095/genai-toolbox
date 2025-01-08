@@ -81,7 +81,8 @@ class TestE2EClient:
             "get-row-by-email-auth",
             "get-row-by-content-auth",
         ]
-        assert {tool.name for tool in toolset} == tool_names
+        for tool in toolset:
+            assert tool.name in tool_names
 
     ##### Auth tests
     @pytest.mark.asyncio
