@@ -12,6 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""End-to-end tests for the toolbox SDK interacting with the toolbox server.
+
+This file covers the following use cases:
+
+1. Loading a tool.
+2. Loading a specific toolset.
+3. Loading all toolsets.
+4. Running a tool with no required auth, with auth provided.
+5. Running a tool with required auth:
+    a. No auth provided.
+    b. Wrong auth provided.
+    c. Correct auth provided.
+6. Running a tool with a parameter that requires auth:
+    a. No auth provided.
+    b. Correct auth provided.
+    c. Auth provided does not contain the required field.
+"""
+
 import pytest
 import pytest_asyncio
 from aiohttp import ClientResponseError
@@ -24,10 +42,12 @@ from toolbox_langchain_sdk.client import ToolboxClient
 class TestE2EClient:
     @pytest_asyncio.fixture(scope="function")
     async def toolbox(self):
+        """Provides a ToolboxClient instance for each test."""
         toolbox = ToolboxClient("http://localhost:5000")
         yield toolbox
         await toolbox.close()
 
+    #### Basic e2e tests
     @pytest.mark.asyncio
     async def test_load_tool(self, toolbox):
         tool = await toolbox.load_tool("get-n-rows")
@@ -63,9 +83,10 @@ class TestE2EClient:
         ]
         assert {tool.name for tool in toolset} == tool_names
 
-    # If a tool requires no auth but auth tokens are passed, then they are ignored
+    ##### Auth tests
     @pytest.mark.asyncio
     async def test_run_tool_unauth_with_auth(self, toolbox, auth_token2):
+        """Tests running a tool that doesn't require auth, with auth provided."""
         tool = await toolbox.load_tool(
             "get-row-by-id", auth_tokens={"my-test-auth": lambda: auth_token2}
         )
@@ -74,6 +95,7 @@ class TestE2EClient:
 
     @pytest.mark.asyncio
     async def test_run_tool_no_auth(self, toolbox):
+        """Tests running a tool requiring auth without providing auth."""
         tool = await toolbox.load_tool(
             "get-row-by-id-auth",
         )
@@ -83,6 +105,7 @@ class TestE2EClient:
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="b/388259742")
     async def test_run_tool_wrong_auth(self, toolbox, auth_token2):
+        """Tests running a tool with incorrect auth."""
         toolbox.add_auth_token("my-test-auth", lambda: auth_token2)
         tool = await toolbox.load_tool(
             "get-row-by-id-auth",
@@ -92,6 +115,7 @@ class TestE2EClient:
 
     @pytest.mark.asyncio
     async def test_run_tool_auth(self, toolbox, auth_token1):
+        """Tests running a tool with correct auth."""
         toolbox.add_auth_token("my-test-auth", lambda: auth_token1)
         tool = await toolbox.load_tool(
             "get-row-by-id-auth",
@@ -100,13 +124,15 @@ class TestE2EClient:
         assert "row2" in response["result"]
 
     @pytest.mark.asyncio
-    async def test_run_tool_param_auth_no_auth(self, toolbox, auth_token1):
+    async def test_run_tool_param_auth_no_auth(self, toolbox):
+        """Tests running a tool with a param requiring auth, without auth."""
         tool = await toolbox.load_tool("get-row-by-email-auth")
         with pytest.raises(PermissionError, match="Login required"):
             await tool.arun({})
 
     @pytest.mark.asyncio
     async def test_run_tool_param_auth(self, toolbox, auth_token1):
+        """Tests running a tool with a param requiring auth, with correct auth."""
         tool = await toolbox.load_tool(
             "get-row-by-email-auth", auth_tokens={"my-test-auth": lambda: auth_token1}
         )
@@ -118,6 +144,7 @@ class TestE2EClient:
 
     @pytest.mark.asyncio
     async def test_run_tool_param_auth_no_field(self, toolbox, auth_token1):
+        """Tests running a tool with a param requiring auth, with insufficient auth."""
         tool = await toolbox.load_tool(
             "get-row-by-content-auth", auth_tokens={"my-test-auth": lambda: auth_token1}
         )

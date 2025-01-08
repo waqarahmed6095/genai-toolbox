@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Contains pytest fixtures that are accessible from all 
+files present in the same directory."""
+
 from __future__ import annotations
 
 import os
@@ -57,7 +60,6 @@ def download_blob(
     bucket_name: str, source_blob_name: str, destination_file_name: str
 ) -> None:
     """Downloads a blob from a GCS bucket."""
-
     storage_client = storage.Client()
 
     bucket = storage_client.bucket(bucket_name)
