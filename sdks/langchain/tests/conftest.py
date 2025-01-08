@@ -142,10 +142,25 @@ def auth_token2(project_id: str) -> str:
 @pytest_asyncio.fixture(scope="session")
 def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator:
     """Starts the toolbox server as a subprocess."""
-    print("Downloading toolbox binary from gcs bucket...")
-    source_blob_name = get_toolbox_binary_url(toolbox_version)
-    download_blob("genai-toolbox", source_blob_name, "toolbox")
-    print("Toolbox binary downloaded successfully.")
+    # Get toolbox binary
+    if toolbox_version == 'dev':
+        print("Compiling the current dev toolbox version...")
+        subprocess.Popen(
+            ["go", "get", "./..."]
+        )
+        subprocess.Popen(
+            ["go", "build", "-o", "toolbox"]
+        )
+        # Wait for compilation
+        time.sleep(5)
+        print("Toolbox binary compiled successfully.")
+    else:
+        print("Downloading toolbox binary from gcs bucket...")
+        source_blob_name = get_toolbox_binary_url(toolbox_version)
+        download_blob("genai-toolbox", source_blob_name, "toolbox")
+        print("Toolbox binary downloaded successfully.")
+    
+    # Run toolbox binary
     try:
         print("Opening toolbox server process...")
         # Make toolbox executable
