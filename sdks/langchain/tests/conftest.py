@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Contains pytest fixtures that are accessible from all 
+files present in the same directory."""
+
 from __future__ import annotations
 
 import os
@@ -21,9 +24,10 @@ import tempfile
 import time
 from typing import Generator
 
+import google
 import pytest_asyncio
+from google.auth import compute_engine
 from google.cloud import secretmanager, storage
-
 
 #### Define Utility Functions
 def get_env_var(key: str) -> str:
@@ -55,7 +59,6 @@ def download_blob(
     bucket_name: str, source_blob_name: str, destination_file_name: str
 ) -> None:
     """Downloads a blob from a GCS bucket."""
-
     storage_client = storage.Client()
 
     bucket = storage_client.bucket(bucket_name)
@@ -72,6 +75,19 @@ def get_toolbox_binary_url(toolbox_version: str) -> str:
         "arm64" if os_system == "darwin" and platform.machine() == "arm64" else "amd64"
     )
     return f"v{toolbox_version}/{os_system}/{arch}/toolbox"
+
+
+def get_auth_token(client_id: str) -> str:
+    """Retrieves an authentication token"""
+    request = google.auth.transport.requests.Request()
+    credentials = compute_engine.IDTokenCredentials(
+        request=request,
+        target_audience=client_id,
+        use_metadata_identity_endpoint=True,
+    )
+    if not credentials.valid:
+        credentials.refresh(request)
+    return credentials.token
 
 
 #### Define Fixtures
@@ -94,6 +110,22 @@ def tools_file_path(project_id: str) -> Generator[str]:
     tools_file_path = create_tmpfile(tools_manifest)
     yield tools_file_path
     os.remove(tools_file_path)
+
+
+@pytest_asyncio.fixture(scope="session")
+def auth_token1(project_id: str) -> str:
+    client_id = access_secret_version(
+        project_id=project_id, secret_id="sdk_testing_client1"
+    )
+    return get_auth_token(client_id)
+
+
+@pytest_asyncio.fixture(scope="session")
+def auth_token2(project_id: str) -> str:
+    client_id = access_secret_version(
+        project_id=project_id, secret_id="sdk_testing_client2"
+    )
+    return get_auth_token(client_id)
 
 
 @pytest_asyncio.fixture(scope="session")
