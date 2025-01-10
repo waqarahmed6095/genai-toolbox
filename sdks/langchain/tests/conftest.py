@@ -25,7 +25,6 @@ import time
 from typing import Generator
 
 import google
-import pytest
 import pytest_asyncio
 from google.auth import compute_engine
 from google.cloud import secretmanager, storage
@@ -78,29 +77,17 @@ def get_toolbox_binary_url(toolbox_version: str) -> str:
     )
     return f"v{toolbox_version}/{os_system}/{arch}/toolbox"
 
-
-def auth_token(client_id: str) -> str:
-    """Retrieves an authentication token."""
-    try:
-        # Try getting the token using gcloud (for local development)
-        result = subprocess.run(
-            ["gcloud", "auth", "print-identity-token"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        # If gcloud fails or is not found, use the metadata server
-        request = google.auth.transport.requests.Request()
-        credentials = compute_engine.IDTokenCredentials(
-            request=request,
-            target_audience=client_id,
-            use_metadata_identity_endpoint=True,
-        )
+def get_auth_token(client_id: str) -> str:
+    """Retrieves an authentication token"""
+    request = google.auth.transport.requests.Request()
+    credentials = compute_engine.IDTokenCredentials(
+        request=request,
+        target_audience=client_id,
+        use_metadata_identity_endpoint=True,
+    )
+    if not credentials.valid:
         credentials.refresh(request)
-        return credentials.token
-
+    return credentials.token
 
 #### Define Fixtures
 @pytest_asyncio.fixture(scope="session")
@@ -129,7 +116,7 @@ def auth_token1(project_id: str) -> str:
     client_id = access_secret_version(
         project_id=project_id, secret_id="sdk_testing_client1"
     )
-    return auth_token(client_id)
+    return get_auth_token(client_id)
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -137,13 +124,10 @@ def auth_token2(project_id: str) -> str:
     client_id = access_secret_version(
         project_id=project_id, secret_id="sdk_testing_client2"
     )
-    return auth_token(client_id)
-
+    return get_auth_token(client_id)
 
 @pytest_asyncio.fixture(scope="session")
-def toolbox_server(
-    tmp_path_factory: pytest.TempPathFactory, toolbox_version: str, tools_file_path: str
-) -> Generator:
+def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator[None]:
     """Starts the toolbox server as a subprocess."""
     # Get a temp dir for toolbox data
     tmp_path = tmp_path_factory.mktemp("toolbox_data")
@@ -172,10 +156,17 @@ def toolbox_server(
         toolbox_server = subprocess.Popen(
             [toolbox_binary_path, "--tools_file", tools_file_path]
         )
+
         # Wait for server to start
-        time.sleep(10)
-        print("Checking if toolbox is successfully started...")
-        assert not toolbox_server.poll(), "Toolbox server failed to start"
+        # Retry logic with a timeout
+        for _ in range(5):  # retries
+            time.sleep(2)
+            print("Checking if toolbox is successfully started...")
+            if toolbox_server.poll() is None:
+                print("Toolbox server started successfully.")
+                break
+        else:
+            raise RuntimeError("Toolbox server failed to start after 5 retries.")
     except subprocess.CalledProcessError as e:
         print(e.stderr.decode("utf-8"))
         print(e.stdout.decode("utf-8"))
