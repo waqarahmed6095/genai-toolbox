@@ -77,6 +77,7 @@ def get_toolbox_binary_url(toolbox_version: str) -> str:
     )
     return f"v{toolbox_version}/{os_system}/{arch}/toolbox"
 
+
 def get_auth_token(client_id: str) -> str:
     """Retrieves an authentication token"""
     request = google.auth.transport.requests.Request()
@@ -88,6 +89,7 @@ def get_auth_token(client_id: str) -> str:
     if not credentials.valid:
         credentials.refresh(request)
     return credentials.token
+
 
 #### Define Fixtures
 @pytest_asyncio.fixture(scope="session")
@@ -125,6 +127,7 @@ def auth_token2(project_id: str) -> str:
         project_id=project_id, secret_id="sdk_testing_client2"
     )
     return get_auth_token(client_id)
+
 
 @pytest_asyncio.fixture(scope="session")
 def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator[None]:
