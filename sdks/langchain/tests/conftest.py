@@ -144,10 +144,17 @@ def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator[None
         toolbox_server = subprocess.Popen(
             ["./toolbox", "--tools_file", tools_file_path]
         )
+
         # Wait for server to start
-        time.sleep(10)
-        print("Checking if toolbox is successfully started...")
-        assert not toolbox_server.poll(), "Toolbox server failed to start"
+        # Retry logic with a timeout
+        for _ in range(5):  # retries
+            time.sleep(2)
+            print("Checking if toolbox is successfully started...")
+            if toolbox_server.poll() is None:
+                print("Toolbox server started successfully.")
+                break
+        else:
+            raise RuntimeError("Toolbox server failed to start after 5 retries.")
     except subprocess.CalledProcessError as e:
         print(e.stderr.decode("utf-8"))
         print(e.stdout.decode("utf-8"))
