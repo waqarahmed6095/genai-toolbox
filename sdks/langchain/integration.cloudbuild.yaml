@@ -31,6 +31,8 @@ steps:
   - id: Install Go
     name: 'ubuntu:latest'
     entrypoint: /bin/bash
+    env:
+      - PATH=$PATH:/usr/local/go/bin
     args:
       - '-c'
       - |
@@ -38,8 +40,7 @@ steps:
         apt-get install -y wget && \
         wget -q -O go.tgz https://go.dev/dl/go1.20.linux-amd64.tar.gz && \
         tar -C /usr/local -xzf go.tgz && \
-        rm go.tgz && \
-        export PATH=$PATH:/usr/local/go/bin
+        rm go.tgz
   - id: Run integration tests
     name: 'python:${_VERSION}'
     env:
