@@ -132,10 +132,6 @@ def auth_token2(project_id: str) -> str:
 @pytest_asyncio.fixture(scope="session")
 def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator[None]:
     """Starts the toolbox server as a subprocess."""
-    # Get a temp dir for toolbox data
-    tmp_path = tmp_path_factory.mktemp("toolbox_data")
-    toolbox_binary_path = str(tmp_path) + "/toolbox"
-
     # Get toolbox binary
     if toolbox_version == "dev":
         print("Compiling the current dev toolbox version...")
@@ -158,7 +154,6 @@ def toolbox_server(toolbox_version: str, tools_file_path: str) -> Generator[None
         # Run toolbox binary
         toolbox_server = subprocess.Popen(
             [toolbox_binary_path, "--tools_file", tools_file_path]
-        )
 
         # Wait for server to start
         # Retry logic with a timeout
