@@ -21,11 +21,13 @@ import (
 	"github.com/googleapis/genai-toolbox/internal/auth/google"
 	"github.com/googleapis/genai-toolbox/internal/sources"
 	alloydbpgsrc "github.com/googleapis/genai-toolbox/internal/sources/alloydbpg"
+	bigtablesrc "github.com/googleapis/genai-toolbox/internal/sources/bigtable"
 	cloudsqlpgsrc "github.com/googleapis/genai-toolbox/internal/sources/cloudsqlpg"
 	neo4jrc "github.com/googleapis/genai-toolbox/internal/sources/neo4j"
 	postgressrc "github.com/googleapis/genai-toolbox/internal/sources/postgres"
 	spannersrc "github.com/googleapis/genai-toolbox/internal/sources/spanner"
 	"github.com/googleapis/genai-toolbox/internal/tools"
+	"github.com/googleapis/genai-toolbox/internal/tools/bigtable"
 	neo4jtool "github.com/googleapis/genai-toolbox/internal/tools/neo4j"
 	"github.com/googleapis/genai-toolbox/internal/tools/postgressql"
 	"github.com/googleapis/genai-toolbox/internal/tools/spanner"
@@ -164,6 +166,12 @@ func (c *SourceConfigs) UnmarshalYAML(node *yaml.Node) error {
 				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
 			}
 			(*c)[name] = actual
+		case bigtablesrc.SourceKind:
+			actual := bigtablesrc.Config{Name: name, Dialect: "googlesql"}
+			if err := n.Decode(&actual); err != nil {
+				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
+			}
+			(*c)[name] = actual
 		default:
 			return fmt.Errorf("%q is not a valid kind of data source", k.Kind)
 		}
@@ -245,6 +253,12 @@ func (c *ToolConfigs) UnmarshalYAML(node *yaml.Node) error {
 			(*c)[name] = actual
 		case neo4jtool.ToolKind:
 			actual := neo4jtool.Config{Name: name}
+			if err := n.Decode(&actual); err != nil {
+				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
+			}
+			(*c)[name] = actual
+		case bigtable.ToolKind:
+			actual := bigtable.Config{Name: name}
 			if err := n.Decode(&actual); err != nil {
 				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
 			}

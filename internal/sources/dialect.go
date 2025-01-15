@@ -37,7 +37,7 @@ func (i *Dialect) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 	switch strings.ToLower(dialect) {
-	case "googlesql", "postgresql":
+	case "googlesql", "postgresql", "sql":
 		*i = Dialect(strings.ToLower(dialect))
 		return nil
 	default:

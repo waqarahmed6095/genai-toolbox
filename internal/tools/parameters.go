@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"cloud.google.com/go/bigquery"
 	"gopkg.in/yaml.v3"
 )
 
@@ -49,8 +50,8 @@ func (p ParamValues) AsSlice() []any {
 }
 
 // AsMap returns a map of ParamValue's names to values.
-func (p ParamValues) AsMap() map[string]interface{} {
-	params := make(map[string]interface{})
+func (p ParamValues) AsMap() map[string]any {
+	params := make(map[string]any)
 	for _, p := range p {
 		params[p.Name] = p.Value
 	}
@@ -59,12 +60,25 @@ func (p ParamValues) AsMap() map[string]interface{} {
 
 // AsMapByOrderedKeys returns a map of a key's position to it's value, as neccesary for Spanner PSQL.
 // Example { $1 -> "value1", $2 -> "value2" }
-func (p ParamValues) AsMapByOrderedKeys() map[string]interface{} {
-	params := make(map[string]interface{})
+func (p ParamValues) AsMapByOrderedKeys() map[string]any {
+	params := make(map[string]any)
 
 	for i, p := range p {
 		key := fmt.Sprintf("p%d", i+1)
 		params[key] = p.Value
+	}
+	return params
+}
+
+// AsSliceOfStructValues returns a slice of structs with fields "Name" and "Value" for BigQuery.
+// Example: [{Name:  "corpus",Value: "romeoandjuliet",},
+//			{Name:  "min_word_count",Value: 250,},]
+
+func (p ParamValues) AsSliceOfQueryParameters() []bigquery.QueryParameter {
+	params := []bigquery.QueryParameter{}
+
+	for _, p := range p {
+		params = append(params, bigquery.QueryParameter{Name: p.Name, Value: p.Value})
 	}
 	return params
 }
