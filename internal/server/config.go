@@ -167,7 +167,7 @@ func (c *SourceConfigs) UnmarshalYAML(node *yaml.Node) error {
 			}
 			(*c)[name] = actual
 		case bigtablesrc.SourceKind:
-			actual := bigtablesrc.Config{Name: name, Dialect: "googlesql"}
+			actual := bigtablesrc.Config{Name: name, Dialect: "googlesql", Location: ""}
 			if err := n.Decode(&actual); err != nil {
 				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
 			}

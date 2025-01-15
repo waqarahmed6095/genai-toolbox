@@ -36,7 +36,7 @@ func TestParseFromYamlBigtable(t *testing.T) {
 			in: `
 			tools:
 				example_tool:
-					kind: bigtable-sql
+					kind: bigtable-bigquery
 					source: my-instance
 					description: some description
 					statement: |

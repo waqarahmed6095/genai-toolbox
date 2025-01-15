@@ -26,7 +26,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-const ToolKind string = "bigtable-sql"
+const ToolKind string = "bigtable-bigquery"
 
 type compatibleSource interface {
 	BigtableClient() *bigquery.Client
@@ -98,17 +98,6 @@ type Tool struct {
 	manifest  tools.Manifest
 }
 
-func getMapParams(params tools.ParamValues, dialect string) (map[string]interface{}, error) {
-	switch strings.ToLower(dialect) {
-	case "googlesql":
-		return params.AsMap(), nil
-	case "sparksql":
-		return params.AsMap(), nil
-	default:
-		return nil, fmt.Errorf("invalid dialect %s", dialect)
-	}
-}
-
 func (t Tool) Invoke(params tools.ParamValues) (string, error) {
 	fmt.Printf("Invoked tool %s\n", t.Name)
 
@@ -144,6 +133,9 @@ func (t Tool) Invoke(params tools.ParamValues) (string, error) {
 		return "", fmt.Errorf("query job run failure: %w", err)
 	}
 	it, err := job.Read(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error retrieving query result: %w", err)
+	}
 
 	// fetch query result
 	var out strings.Builder

@@ -31,10 +31,11 @@ const SourceKind string = "bigtable"
 var _ sources.SourceConfig = Config{}
 
 type Config struct {
-	Name    string          `yaml:"name"`
-	Kind    string          `yaml:"kind"`
-	Project string          `yaml:"project"`
-	Dialect sources.Dialect `yaml:"dialect"`
+	Name     string          `yaml:"name"`
+	Kind     string          `yaml:"kind"`
+	Project  string          `yaml:"project"`
+	Location string          `yaml:"location"`
+	Dialect  sources.Dialect `yaml:"dialect"`
 }
 
 func (r Config) SourceConfigKind() string {
@@ -42,7 +43,7 @@ func (r Config) SourceConfigKind() string {
 }
 
 func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.Source, error) {
-	client, err := initBigtableClient(ctx, tracer, r.Name, r.Project)
+	client, err := initBigtableClient(ctx, tracer, r.Name, r.Project, r.Location)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create client: %w", err)
 	}
@@ -77,7 +78,7 @@ func (s *Source) DatabaseDialect() string {
 	return s.Dialect
 }
 
-func initBigtableClient(ctx context.Context, tracer trace.Tracer, name, project string) (*bigquery.Client, error) {
+func initBigtableClient(ctx context.Context, tracer trace.Tracer, name, project, location string) (*bigquery.Client, error) {
 	//nolint:all // Reassigned ctx
 	ctx, span := sources.InitConnectionSpan(ctx, tracer, SourceKind, name)
 	defer span.End()
@@ -87,6 +88,11 @@ func initBigtableClient(ctx context.Context, tracer trace.Tracer, name, project 
 	client, err := bigquery.NewClient(ctx, project, option.WithGRPCConnectionPool(poolSize))
 	if err != nil {
 		log.Fatalf("unable to create new Big Query client: %v", err)
+	}
+
+	// Set default location if specified
+	if location != "" {
+		client.Location = location
 	}
 
 	return client, nil
