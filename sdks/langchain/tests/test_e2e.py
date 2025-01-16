@@ -93,7 +93,7 @@ class TestE2EClient:
     async def test_run_tool_missing_params(self, toolbox):
         tool = await toolbox.load_tool("get-n-rows")
         with pytest.raises(ValidationError, match="Field required"):
-            await tool.ainvoke()
+            await tool.ainvoke({})
 
     @pytest.mark.asyncio
     async def test_run_tool_wrong_param_type(self, toolbox):
