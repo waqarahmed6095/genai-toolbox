@@ -19,13 +19,16 @@ This file covers the following use cases:
 1. Loading a tool.
 2. Loading a specific toolset.
 3. Loading the default toolset (contains all tools).
-4. Running a tool with no required auth, with auth provided.
-5. Running a tool with required auth:
+4. Running a tool with
+    a. Missing params.
+    b. Wrong param type.
+5. Running a tool with no required auth, with auth provided.
+6. Running a tool with required auth:
     a. No auth provided.
     b. Wrong auth provided: The tool requires a different authentication
                             than the one provided.
     c. Correct auth provided.
-6. Running a tool with a parameter that requires auth:
+7. Running a tool with a parameter that requires auth:
     a. No auth provided.
     b. Correct auth provided.
     c. Auth provided does not contain the required claim.
@@ -34,6 +37,7 @@ This file covers the following use cases:
 import pytest
 import pytest_asyncio
 from aiohttp import ClientResponseError
+from pydantic import ValidationError
 
 from toolbox_llamaindex_sdk.client import ToolboxClient
 
@@ -84,6 +88,18 @@ class TestE2EClient:
         ]
         for tool in toolset:
             assert tool.metadata.name in tool_names
+    
+    @pytest.mark.asyncio
+    async def test_run_tool_missing_params(self, toolbox):
+        tool = await toolbox.load_tool("get-n-rows")
+        with pytest.raises(ValidationError, match="Field required"):
+            await tool.acall()
+
+    @pytest.mark.asyncio
+    async def test_run_tool_wrong_param_type(self, toolbox):
+        tool = await toolbox.load_tool("get-n-rows")
+        with pytest.raises(ValidationError, match="Input should be a valid string"):
+            await tool.acall(num_rows=2)
 
     ##### Auth tests
     @pytest.mark.asyncio
