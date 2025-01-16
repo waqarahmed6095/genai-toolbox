@@ -98,7 +98,7 @@ class TestE2EClient:
     @pytest.mark.asyncio
     async def test_run_tool_wrong_param_type(self, toolbox):
         tool = await toolbox.load_tool("get-n-rows")
-        with pytest.raises(AssertionError, match="Regex pattern did not match."):
+        with pytest.raises(ValidationError, match="Input should be a valid string"):
             await tool.ainvoke({"num_rows": 2})
 
     ##### Auth tests
