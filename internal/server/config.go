@@ -22,9 +22,11 @@ import (
 	"github.com/googleapis/genai-toolbox/internal/sources"
 	alloydbpgsrc "github.com/googleapis/genai-toolbox/internal/sources/alloydbpg"
 	cloudsqlpgsrc "github.com/googleapis/genai-toolbox/internal/sources/cloudsqlpg"
+	neo4jrc "github.com/googleapis/genai-toolbox/internal/sources/neo4j"
 	postgressrc "github.com/googleapis/genai-toolbox/internal/sources/postgres"
 	spannersrc "github.com/googleapis/genai-toolbox/internal/sources/spanner"
 	"github.com/googleapis/genai-toolbox/internal/tools"
+	neo4jtool "github.com/googleapis/genai-toolbox/internal/tools/neo4j"
 	"github.com/googleapis/genai-toolbox/internal/tools/postgressql"
 	"github.com/googleapis/genai-toolbox/internal/tools/spanner"
 	"gopkg.in/yaml.v3"
@@ -47,8 +49,14 @@ type ServerConfig struct {
 	ToolsetConfigs ToolsetConfigs
 	// LoggingFormat defines whether structured loggings are used.
 	LoggingFormat logFormat
-	// LogLevel defines the levels to log
+	// LogLevel defines the levels to log.
 	LogLevel StringLevel
+	// TelemetryGCP defines whether GCP exporter is used.
+	TelemetryGCP bool
+	// TelemetryOTLP defines OTLP collector url for telemetry exports.
+	TelemetryOTLP string
+	// TelemetryServiceName defines the value of service.name resource attribute.
+	TelemetryServiceName string
 }
 
 type logFormat string
@@ -150,6 +158,12 @@ func (c *SourceConfigs) UnmarshalYAML(node *yaml.Node) error {
 				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
 			}
 			(*c)[name] = actual
+		case neo4jrc.SourceKind:
+			actual := neo4jrc.Config{Name: name}
+			if err := n.Decode(&actual); err != nil {
+				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
+			}
+			(*c)[name] = actual
 		default:
 			return fmt.Errorf("%q is not a valid kind of data source", k.Kind)
 		}
@@ -162,7 +176,7 @@ func (c *SourceConfigs) UnmarshalYAML(node *yaml.Node) error {
 type AuthSourceConfigs map[string]auth.AuthSourceConfig
 
 // validate interface
-var _ yaml.Unmarshaler = &SourceConfigs{}
+var _ yaml.Unmarshaler = &AuthSourceConfigs{}
 
 func (c *AuthSourceConfigs) UnmarshalYAML(node *yaml.Node) error {
 	*c = make(AuthSourceConfigs)
@@ -225,6 +239,12 @@ func (c *ToolConfigs) UnmarshalYAML(node *yaml.Node) error {
 			(*c)[name] = actual
 		case spanner.ToolKind:
 			actual := spanner.Config{Name: name}
+			if err := n.Decode(&actual); err != nil {
+				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
+			}
+			(*c)[name] = actual
+		case neo4jtool.ToolKind:
+			actual := neo4jtool.Config{Name: name}
 			if err := n.Decode(&actual); err != nil {
 				return fmt.Errorf("unable to parse as %q: %w", k.Kind, err)
 			}

@@ -50,6 +50,9 @@ We currently support the following types of kinds of tools:
   PostgreSQL-compatible database.
 * [spanner](./spanner.md) - Run a Spanner (either googlesql or postgresql)
   statement againts Spanner database.
+* [neo4j-cypher](./neo4j-cypher.md) - Run a Cypher statement against a
+  Neo4j database.
+
 
 ## Specifying Parameters
 
@@ -96,9 +99,9 @@ requires another Parameter to be specified under the `items` field:
         type: array
         description: A list of airline, ordered by preference. 
         items:
-          - name: name 
-            type: string
-            description: Name of the airline. 
+          name: name 
+          type: string
+          description: Name of the airline. 
 ```
 
 | **field**   |     **type**     | **required** | **description**                                                            |
