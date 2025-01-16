@@ -88,7 +88,7 @@ class TestE2EClient:
         ]
         for tool in toolset:
             assert tool.metadata.name in tool_names
-    
+
     @pytest.mark.asyncio
     async def test_run_tool_missing_params(self, toolbox):
         tool = await toolbox.load_tool("get-n-rows")
