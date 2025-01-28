@@ -22,14 +22,19 @@ package tests
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
+	"testing"
+	"time"
 
-	"gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 
 	"github.com/googleapis/genai-toolbox/cmd"
 )
@@ -201,5 +206,177 @@ func (c *CmdExec) WaitForString(ctx context.Context, re *regexp.Regexp) (string,
 			}
 			sb.WriteString(o.s)
 		}
+	}
+}
+
+func RunToolInvocationWithParamsTest(t *testing.T, sourceConfig map[string]any, toolKind string, tableName string) {
+	// Specify query statement for different tool kinds
+	var statement string
+	switch toolKind {
+	case "postgres-sql":
+		statement = fmt.Sprintf("SELECT * FROM %s WHERE id = $1 OR name = $2;", tableName)
+	case "mssql":
+		statement = fmt.Sprintf("SELECT * FROM %s WHERE id = @id OR name = @p2;", tableName)
+	default:
+		t.Fatalf("invalid tool kind: %s", toolKind)
+	}
+
+	// Tools using database/sql interface only outputs `int64` instead of `int32`
+	var wantString string
+	switch toolKind {
+	case "mssql":
+		wantString = "Stub tool call for \"my-tool\"! Parameters parsed: [{\"id\" '\\x03'} {\"name\" \"Alice\"}] \n Output: [%!s(int64=1) Alice][%!s(int64=3) Sid]"
+	default:
+		wantString = "Stub tool call for \"my-tool\"! Parameters parsed: [{\"id\" '\\x03'} {\"name\" \"Alice\"}] \n Output: [%!s(int32=1) Alice][%!s(int32=3) Sid]"
+	}
+
+	// Write config into a file and pass it to command
+	toolsFile := map[string]any{
+		"sources": map[string]any{
+			"my-instance": sourceConfig,
+		},
+		"tools": map[string]any{
+			"my-tool": map[string]any{
+				"kind":        toolKind,
+				"source":      "my-instance",
+				"description": "Tool to test invocation with params.",
+				"statement":   statement,
+				"parameters": []any{
+					map[string]any{
+						"name":        "id",
+						"type":        "integer",
+						"description": "user ID",
+					},
+					map[string]any{
+						"name":        "name",
+						"type":        "string",
+						"description": "user name",
+					},
+				},
+			},
+		},
+	}
+
+	// Initialize a test command
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	var args []string
+
+	cmd, cleanup, err := StartCmd(ctx, toolsFile, args...)
+	if err != nil {
+		t.Fatalf("command initialization returned an error: %s", err)
+	}
+	defer cleanup()
+
+	waitCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	out, err := cmd.WaitForString(waitCtx, regexp.MustCompile(`Server ready to serve`))
+	if err != nil {
+		t.Logf("toolbox command logs: \n%s", out)
+		t.Fatalf("toolbox didn't start successfully: %s", err)
+	}
+
+	// Test Tool invocation with parameters
+	invokeTcs := []struct {
+		name string
+		api  string
+
+		requestBody io.Reader
+		want        string
+		isErr       bool
+	}{
+		{
+			name:        "Invoke my-tool with parameters",
+			api:         "http://127.0.0.1:5000/api/tool/my-tool/invoke",
+			requestBody: bytes.NewBuffer([]byte(`{"id": 3, "name": "Alice"}`)),
+			isErr:       false,
+			want:        wantString,
+		},
+		{
+			name:        "Invoke my-tool without parameters",
+			api:         "http://127.0.0.1:5000/api/tool/my-tool/invoke",
+			requestBody: bytes.NewBuffer([]byte(`{}`)),
+			isErr:       true,
+		},
+		{
+			name:        "Invoke my-tool without insufficient parameters",
+			api:         "http://127.0.0.1:5000/api/tool/my-tool/invoke",
+			requestBody: bytes.NewBuffer([]byte(`{"id": 1}`)),
+			isErr:       true,
+		},
+	}
+	for _, tc := range invokeTcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// Send Tool invocation request with parameters
+			req, err := http.NewRequest(http.MethodPost, tc.api, tc.requestBody)
+			if err != nil {
+				t.Fatalf("unable to create request: %s", err)
+			}
+			req.Header.Add("Content-type", "application/json")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("unable to send request: %s", err)
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				if tc.isErr == true {
+					return
+				}
+				bodyBytes, _ := io.ReadAll(resp.Body)
+				t.Fatalf("response status code is not 200, got %d: %s", resp.StatusCode, string(bodyBytes))
+			}
+
+			// Check response body
+			var body map[string]interface{}
+			err = json.NewDecoder(resp.Body).Decode(&body)
+			if err != nil {
+				t.Fatalf("error parsing response body")
+			}
+			got, ok := body["result"].(string)
+			if !ok {
+				t.Fatalf("unable to find result in response body")
+			}
+
+			if got != tc.want {
+				t.Fatalf("unexpected value: got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func RunSourceConnectionTest(t *testing.T, sourceConfig map[string]any, toolKind string) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	var args []string
+
+	// Write config into a file and pass it to command
+	toolsFile := map[string]any{
+		"sources": map[string]any{
+			"my-instance": sourceConfig,
+		},
+		"tools": map[string]any{
+			"my-simple-tool": map[string]any{
+				"kind":        toolKind,
+				"source":      "my-instance",
+				"description": "Simple tool to test end to end functionality.",
+				"statement":   "SELECT 1;",
+			},
+		},
+	}
+	cmd, cleanup, err := StartCmd(ctx, toolsFile, args...)
+	if err != nil {
+		t.Fatalf("command initialization returned an error: %s", err)
+	}
+	defer cleanup()
+
+	waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	out, err := cmd.WaitForString(waitCtx, regexp.MustCompile(`Server ready to serve`))
+	if err != nil {
+		t.Logf("toolbox command logs: \n%s", out)
+		t.Fatalf("toolbox didn't start successfully: %s", err)
 	}
 }

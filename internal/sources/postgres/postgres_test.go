@@ -17,11 +17,11 @@ package postgres_test
 import (
 	"testing"
 
+	yaml "github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleapis/genai-toolbox/internal/server"
 	"github.com/googleapis/genai-toolbox/internal/sources/postgres"
 	"github.com/googleapis/genai-toolbox/internal/testutils"
-	"gopkg.in/yaml.v3"
 )
 
 func TestParseFromYamlPostgres(t *testing.T) {
@@ -37,7 +37,7 @@ func TestParseFromYamlPostgres(t *testing.T) {
 				my-pg-instance:
 					kind: postgres
 					host: my-host
-					port: 0000
+					port: 0.0.0.0
 					database: my_db
 			`,
 			want: server.SourceConfigs{
@@ -45,7 +45,7 @@ func TestParseFromYamlPostgres(t *testing.T) {
 					Name:     "my-pg-instance",
 					Kind:     postgres.SourceKind,
 					Host:     "my-host",
-					Port:     "0000",
+					Port:     "0.0.0.0",
 					Database: "my_db",
 				},
 			},

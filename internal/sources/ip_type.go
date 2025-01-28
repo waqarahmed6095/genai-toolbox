@@ -17,8 +17,6 @@ package sources
 import (
 	"fmt"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 type IPType string
@@ -30,16 +28,16 @@ func (i *IPType) String() string {
 	return "public"
 }
 
-func (i *IPType) UnmarshalYAML(node *yaml.Node) error {
-	var ip_type string
-	if err := node.Decode(&ip_type); err != nil {
+func (i *IPType) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var ipType string
+	if err := unmarshal(&ipType); err != nil {
 		return err
 	}
-	switch strings.ToLower(ip_type) {
+	switch strings.ToLower(ipType) {
 	case "private", "public":
-		*i = IPType(strings.ToLower(ip_type))
+		*i = IPType(strings.ToLower(ipType))
 		return nil
 	default:
-		return fmt.Errorf(`ip_type invalid: must be one of "public", or "private"`)
+		return fmt.Errorf(`ipType invalid: must be one of "public", or "private"`)
 	}
 }

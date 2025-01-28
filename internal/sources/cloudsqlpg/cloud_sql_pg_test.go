@@ -17,11 +17,11 @@ package cloudsqlpg_test
 import (
 	"testing"
 
+	yaml "github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleapis/genai-toolbox/internal/server"
 	"github.com/googleapis/genai-toolbox/internal/sources/cloudsqlpg"
 	"github.com/googleapis/genai-toolbox/internal/testutils"
-	"gopkg.in/yaml.v3"
 )
 
 func TestParseFromYamlCloudSQLPg(t *testing.T) {
@@ -54,7 +54,7 @@ func TestParseFromYamlCloudSQLPg(t *testing.T) {
 			},
 		},
 		{
-			desc: "public ip_type",
+			desc: "public ipType",
 			in: `
 			sources:
 				my-pg-instance:
@@ -62,7 +62,7 @@ func TestParseFromYamlCloudSQLPg(t *testing.T) {
 					project: my-project
 					region: my-region
 					instance: my-instance
-					ip_type: Public
+					ipType: Public
 					database: my_db
 			`,
 			want: server.SourceConfigs{
@@ -78,7 +78,7 @@ func TestParseFromYamlCloudSQLPg(t *testing.T) {
 			},
 		},
 		{
-			desc: "private ip_type",
+			desc: "private ipType",
 			in: `
 			sources:
 				my-pg-instance:
@@ -86,7 +86,7 @@ func TestParseFromYamlCloudSQLPg(t *testing.T) {
 					project: my-project
 					region: my-region
 					instance: my-instance
-					ip_type: private 
+					ipType: private 
 					database: my_db
 			`,
 			want: server.SourceConfigs{
@@ -126,7 +126,7 @@ func FailParseFromYamlCloudSQLPg(t *testing.T) {
 		in   string
 	}{
 		{
-			desc: "invalid ip_type",
+			desc: "invalid ipType",
 			in: `
 			sources:
 				my-pg-instance:
@@ -134,7 +134,7 @@ func FailParseFromYamlCloudSQLPg(t *testing.T) {
 					project: my-project
 					region: my-region
 					instance: my-instance
-					ip_type: fail 
+					ipType: fail 
 					database: my_db
 			`,
 		},

@@ -17,12 +17,12 @@ package alloydbpg_test
 import (
 	"testing"
 
+	yaml "github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleapis/genai-toolbox/internal/server"
 	"github.com/googleapis/genai-toolbox/internal/sources"
 	"github.com/googleapis/genai-toolbox/internal/sources/alloydbpg"
 	"github.com/googleapis/genai-toolbox/internal/testutils"
-	"gopkg.in/yaml.v3"
 )
 
 func TestParseFromYamlAlloyDBPg(t *testing.T) {
@@ -57,7 +57,7 @@ func TestParseFromYamlAlloyDBPg(t *testing.T) {
 			},
 		},
 		{
-			desc: "public ip_type",
+			desc: "public ipType",
 			in: `
 			sources:
 				my-pg-instance:
@@ -66,7 +66,7 @@ func TestParseFromYamlAlloyDBPg(t *testing.T) {
 					region: my-region
 					cluster: my-cluster
 					instance: my-instance
-					ip_type: Public
+					ipType: Public
 					database: my_db
 			`,
 			want: map[string]sources.SourceConfig{
@@ -83,7 +83,7 @@ func TestParseFromYamlAlloyDBPg(t *testing.T) {
 			},
 		},
 		{
-			desc: "private ip_type",
+			desc: "private ipType",
 			in: `
 			sources:
 				my-pg-instance:
@@ -92,7 +92,7 @@ func TestParseFromYamlAlloyDBPg(t *testing.T) {
 					region: my-region
 					cluster: my-cluster
 					instance: my-instance
-					ip_type: private
+					ipType: private
 					database: my_db
 			`,
 			want: map[string]sources.SourceConfig{
@@ -132,7 +132,7 @@ func FailParseFromYamlAlloyDBPg(t *testing.T) {
 		in   string
 	}{
 		{
-			desc: "invalid ip_type",
+			desc: "invalid ipType",
 			in: `
 			sources:
 				my-pg-instance:
@@ -141,7 +141,7 @@ func FailParseFromYamlAlloyDBPg(t *testing.T) {
 					region: my-region
 					cluster: my-cluster
 					instance: my-instance
-					ip_type: fail 
+					ipType: fail 
 					database: my_db
 			`,
 		},

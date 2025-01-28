@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gopkg.in/yaml.v3"
+	"github.com/googleapis/genai-toolbox/internal/util"
 )
 
 const (
@@ -57,6 +57,15 @@ func (p ParamValues) AsMap() map[string]interface{} {
 	return params
 }
 
+// AsReversedMap returns a map of ParamValue's values to names.
+func (p ParamValues) AsReversedMap() map[any]string {
+	params := make(map[any]string)
+	for _, p := range p {
+		params[p.Value] = p.Name
+	}
+	return params
+}
+
 // AsMapByOrderedKeys returns a map of a key's position to it's value, as neccesary for Spanner PSQL.
 // Example { $1 -> "value1", $2 -> "value2" }
 func (p ParamValues) AsMapByOrderedKeys() map[string]interface{} {
@@ -84,7 +93,7 @@ func parseFromAuthSource(paramAuthSources []ParamAuthSource, claimsMap map[strin
 		}
 		return v, nil
 	}
-	return nil, fmt.Errorf("missing authentication header")
+	return nil, fmt.Errorf("missing or invalid authentication header")
 }
 
 // ParseParams is a helper function for parsing Parameters from an arbitraryJSON object.
@@ -131,15 +140,15 @@ type Parameter interface {
 // Parameters is a type used to allow unmarshal a list of parameters
 type Parameters []Parameter
 
-func (c *Parameters) UnmarshalYAML(node *yaml.Node) error {
+func (c *Parameters) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	*c = make(Parameters, 0)
 	// Parse the 'kind' fields for each source
-	var nodeList []yaml.Node
-	if err := node.Decode(&nodeList); err != nil {
+	var rawList []util.DelayedUnmarshaler
+	if err := unmarshal(&rawList); err != nil {
 		return err
 	}
-	for _, n := range nodeList {
-		p, err := parseParamFromNode(&n)
+	for _, u := range rawList {
+		p, err := parseParamFromDelayedUnmarshaler(&u)
 		if err != nil {
 			return err
 		}
@@ -148,42 +157,42 @@ func (c *Parameters) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-func parseParamFromNode(node *yaml.Node) (Parameter, error) {
-	// Helper function that is required to parse parameters
-	// because there are multiple different types
+// parseParamFromDelayedUnmarshaler is a helper function that is required to parse
+// parameters because there are multiple different types
+func parseParamFromDelayedUnmarshaler(u *util.DelayedUnmarshaler) (Parameter, error) {
 	var p CommonParameter
-	err := node.Decode(&p)
+	err := u.Unmarshal(&p)
 	if err != nil {
-		return nil, fmt.Errorf("parameter missing required fields")
+		return nil, fmt.Errorf("parameter missing required fields: %w", err)
 	}
 	switch p.Type {
 	case typeString:
 		a := &StringParameter{}
-		if err := node.Decode(a); err != nil {
+		if err := u.Unmarshal(a); err != nil {
 			return nil, fmt.Errorf("unable to parse as %q: %w", p.Type, err)
 		}
 		return a, nil
 	case typeInt:
 		a := &IntParameter{}
-		if err := node.Decode(a); err != nil {
+		if err := u.Unmarshal(a); err != nil {
 			return nil, fmt.Errorf("unable to parse as %q: %w", p.Type, err)
 		}
 		return a, nil
 	case typeFloat:
 		a := &FloatParameter{}
-		if err := node.Decode(a); err != nil {
+		if err := u.Unmarshal(a); err != nil {
 			return nil, fmt.Errorf("unable to parse as %q: %w", p.Type, err)
 		}
 		return a, nil
 	case typeBool:
 		a := &BooleanParameter{}
-		if err := node.Decode(a); err != nil {
+		if err := u.Unmarshal(a); err != nil {
 			return nil, fmt.Errorf("unable to parse as %q: %w", p.Type, err)
 		}
 		return a, nil
 	case typeArray:
 		a := &ArrayParameter{}
-		if err := node.Decode(a); err != nil {
+		if err := u.Unmarshal(a); err != nil {
 			return nil, fmt.Errorf("unable to parse as %q: %w", p.Type, err)
 		}
 		return a, nil
@@ -487,36 +496,26 @@ type ArrayParameter struct {
 	Items           Parameter `yaml:"items"`
 }
 
-func (p *ArrayParameter) UnmarshalYAML(node *yaml.Node) error {
-	if err := node.Decode(&p.CommonParameter); err != nil {
+func (p *ArrayParameter) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	if err := unmarshal(&p.CommonParameter); err != nil {
 		return err
 	}
-	// Find the node that represents the "items" field name
-	idx, ok := findIdxByValue(node.Content, "items")
-	if !ok {
-		return fmt.Errorf("array parameter missing 'items' field!")
+	var rawItem struct {
+		Items util.DelayedUnmarshaler `yaml:"items"`
 	}
-	// Parse items from the "value" of "items" field
-	i, err := parseParamFromNode(node.Content[idx+1])
+	if err := unmarshal(&rawItem); err != nil {
+		return err
+	}
+	i, err := parseParamFromDelayedUnmarshaler(&rawItem.Items)
 	if err != nil {
 		return fmt.Errorf("unable to parse 'items' field: %w", err)
 	}
 	if i.GetAuthSources() != nil {
-		return fmt.Errorf("nested items should not have auth sources: %w", err)
+		return fmt.Errorf("nested items should not have auth sources.")
 	}
 	p.Items = i
 
 	return nil
-}
-
-// findIdxByValue returns the index of the first node where value matches
-func findIdxByValue(nodes []*yaml.Node, value string) (int, bool) {
-	for idx, n := range nodes {
-		if n.Value == value {
-			return idx, true
-		}
-	}
-	return 0, false
 }
 
 func (p *ArrayParameter) Parse(v any) (any, error) {
