@@ -45,13 +45,13 @@ func (r Config) SourceConfigKind() string {
 
 func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.Source, error) {
 	// Initializes a Spanner source
-	db, err := initSpannerPool(ctx, tracer, r.Name, r.Project, r.Instance, r.Database)
+	pool, err := initSpannerPool(ctx, tracer, r.Name, r.Project, r.Instance, r.Database)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create db connection: %w", err)
 	}
 
 	// Verify db connection
-	err = db.PingContext(context.Background())
+	err = pool.PingContext(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect successfully: %w", err)
 	}
@@ -59,7 +59,7 @@ func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.So
 	s := &Source{
 		Name:    r.Name,
 		Kind:    SourceKind,
-		Pool:    db,
+		Pool:    pool,
 		Dialect: r.Dialect.String(),
 	}
 	return s, nil
