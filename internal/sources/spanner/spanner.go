@@ -95,10 +95,10 @@ func initSpannerPool(ctx context.Context, tracer trace.Tracer, name, project, in
 	dsn := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbname)
 
 	// Open DB connection
-	db, err := sql.Open("spanner", dsn)
+	pool, err := sql.Open("spanner", dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	return db, nil
+	return pool, nil
 }
