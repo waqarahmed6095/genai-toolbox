@@ -45,7 +45,7 @@ func (r Config) SourceConfigKind() string {
 
 func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.Source, error) {
 	// Initializes a Spanner source
-	db, err := initSpannerDb(ctx, tracer, r.Name, r.Project, r.Instance, r.Database)
+	db, err := initSpannerPool(ctx, tracer, r.Name, r.Project, r.Instance, r.Database)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create db connection: %w", err)
 	}
@@ -59,7 +59,7 @@ func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.So
 	s := &Source{
 		Name:    r.Name,
 		Kind:    SourceKind,
-		Db:      db,
+		Pool:    db,
 		Dialect: r.Dialect.String(),
 	}
 	return s, nil
@@ -70,7 +70,7 @@ var _ sources.Source = &Source{}
 type Source struct {
 	Name    string `yaml:"name"`
 	Kind    string `yaml:"kind"`
-	Db      *sql.DB
+	Pool    *sql.DB
 	Dialect string
 }
 
@@ -78,15 +78,15 @@ func (s *Source) SourceKind() string {
 	return SourceKind
 }
 
-func (s *Source) SpannerDb() *sql.DB {
-	return s.Db
+func (s *Source) SpannerPool() *sql.DB {
+	return s.Pool
 }
 
 func (s *Source) DatabaseDialect() string {
 	return s.Dialect
 }
 
-func initSpannerDb(ctx context.Context, tracer trace.Tracer, name, project, instance, dbname string) (*sql.DB, error) {
+func initSpannerPool(ctx context.Context, tracer trace.Tracer, name, project, instance, dbname string) (*sql.DB, error) {
 	//nolint:all // Reassigned ctx
 	ctx, span := sources.InitConnectionSpan(ctx, tracer, SourceKind, name)
 	defer span.End()

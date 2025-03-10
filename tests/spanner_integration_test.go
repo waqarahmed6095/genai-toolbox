@@ -18,6 +18,7 @@ package tests
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"regexp"
@@ -25,9 +26,8 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/spanner"
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/google/uuid"
+	_ "github.com/googleapis/go-sql-spanner"
 )
 
 var (
@@ -56,31 +56,17 @@ func getSpannerVars(t *testing.T) map[string]any {
 	}
 }
 
-func initSpannerClients(ctx context.Context, project, instance, dbname string) (*spanner.Client, *database.DatabaseAdminClient, error) {
-	// Configure the connection to the database
-	db := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbname)
+func initSpannerDb(ctx context.Context, project, instance, dbname string) (*sql.DB, error) {
+	// Create DSN
+	dsn := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbname)
 
-	// Configure session pool to automatically clean inactive transactions
-	sessionPoolConfig := spanner.SessionPoolConfig{
-		TrackSessionHandles: true,
-		InactiveTransactionRemovalOptions: spanner.InactiveTransactionRemovalOptions{
-			ActionOnInactiveTransaction: spanner.WarnAndClose,
-		},
-	}
-
-	// Create Spanner client (for queries)
-	dataClient, err := spanner.NewClientWithConfig(context.Background(), db, spanner.ClientConfig{SessionPoolConfig: sessionPoolConfig})
+	// Open DB connection
+	db, err := sql.Open("spanner", dsn)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create new Spanner client: %w", err)
+		return nil, err
 	}
 
-	// Create Spanner admin client (for creating databases)
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create new Spanner admin client: %w", err)
-	}
-
-	return dataClient, adminClient, nil
+	return db, nil
 }
 
 func TestSpannerToolEndpoints(t *testing.T) {
@@ -90,10 +76,10 @@ func TestSpannerToolEndpoints(t *testing.T) {
 
 	var args []string
 
-	// Create Spanner client
-	dataClient, adminClient, err := initSpannerClients(ctx, SPANNER_PROJECT, SPANNER_INSTANCE, SPANNER_DATABASE)
+	// Create Spanner DB
+	pool, err := initSpannerDb(ctx, SPANNER_PROJECT, SPANNER_INSTANCE, SPANNER_DATABASE)
 	if err != nil {
-		t.Fatalf("unable to create Spanner client: %s", err)
+		t.Fatalf("unable to create Spanner db: %s", err)
 	}
 
 	// create table name with UUID
@@ -102,12 +88,12 @@ func TestSpannerToolEndpoints(t *testing.T) {
 
 	// set up data for param tool
 	create_statement1, insert_statement1, tool_statement1, params1 := GetSpannerParamToolInfo(tableNameParam)
-	teardownTable1 := SetupSpannerTable(t, ctx, adminClient, dataClient, create_statement1, insert_statement1, tableNameParam, params1)
+	teardownTable1 := SetupSpannerTable(t, ctx, pool, create_statement1, insert_statement1, tableNameParam, params1)
 	defer teardownTable1(t)
 
 	// set up data for auth tool
 	create_statement2, insert_statement2, tool_statement2, params2 := GetSpannerAuthToolInfo(tableNameAuth)
-	teardownTable2 := SetupSpannerTable(t, ctx, adminClient, dataClient, create_statement2, insert_statement2, tableNameAuth, params2)
+	teardownTable2 := SetupSpannerTable(t, ctx, pool, create_statement2, insert_statement2, tableNameAuth, params2)
 	defer teardownTable2(t)
 
 	// Write config into a file and pass it to command

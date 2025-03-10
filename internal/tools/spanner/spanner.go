@@ -28,7 +28,7 @@ import (
 const ToolKind string = "spanner-sql"
 
 type compatibleSource interface {
-	SpannerDb() *sql.DB
+	SpannerPool() *sql.DB
 	DatabaseDialect() string
 }
 
@@ -74,7 +74,7 @@ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error)
 		Parameters:   cfg.Parameters,
 		Statement:    cfg.Statement,
 		AuthRequired: cfg.AuthRequired,
-		Db:           s.SpannerDb(),
+		Pool:         s.SpannerPool(),
 		dialect:      s.DatabaseDialect(),
 		manifest:     tools.Manifest{Description: cfg.Description, Parameters: cfg.Parameters.Manifest()},
 	}
@@ -87,7 +87,7 @@ func NewGenericTool(name string, stmt string, authRequired []string, desc string
 		Kind:         ToolKind,
 		Statement:    stmt,
 		AuthRequired: authRequired,
-		Db:           db,
+		Pool:         db,
 		dialect:      dialect,
 		manifest:     tools.Manifest{Description: desc, Parameters: parameters.Manifest()},
 		Parameters:   parameters,
@@ -103,21 +103,10 @@ type Tool struct {
 	AuthRequired []string         `yaml:"authRequired"`
 	Parameters   tools.Parameters `yaml:"parameters"`
 
-	Db        *sql.DB
+	Pool      *sql.DB
 	dialect   string
 	Statement string
 	manifest  tools.Manifest
-}
-
-func getMapParams(params tools.ParamValues, dialect string) (map[string]interface{}, error) {
-	switch strings.ToLower(dialect) {
-	case "googlesql":
-		return params.AsMap(), nil
-	case "postgresql":
-		return params.AsMapByOrderedKeys(), nil
-	default:
-		return nil, fmt.Errorf("invalid dialect %s", dialect)
-	}
 }
 
 func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
@@ -133,7 +122,7 @@ func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
 		}
 	}
 
-	rows, err := t.Db.QueryContext(context.Background(), t.Statement, namedArgs...)
+	rows, err := t.Pool.QueryContext(context.Background(), t.Statement, namedArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}

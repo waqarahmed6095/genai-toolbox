@@ -7,7 +7,6 @@ toolchain go1.23.2
 require (
 	cloud.google.com/go/alloydbconn v1.13.2
 	cloud.google.com/go/cloudsqlconn v1.15.0
-	cloud.google.com/go/spanner v1.77.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.49.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.25.0
 	github.com/go-chi/chi/v5 v5.1.0
@@ -44,6 +43,7 @@ require (
 	cloud.google.com/go/iam v1.4.0 // indirect
 	cloud.google.com/go/longrunning v0.6.4 // indirect
 	cloud.google.com/go/monitoring v1.24.0 // indirect
+	cloud.google.com/go/spanner v1.77.0 // indirect
 	cloud.google.com/go/trace v1.11.3 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.2 // indirect
