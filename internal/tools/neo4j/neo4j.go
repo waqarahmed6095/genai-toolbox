@@ -42,8 +42,8 @@ type Config struct {
 	Kind         string           `yaml:"kind" validate:"required"`
 	Source       string           `yaml:"source" validate:"required"`
 	Description  string           `yaml:"description" validate:"required"`
-	AuthRequired []string         `yaml:"authRequired"`
 	Statement    string           `yaml:"statement" validate:"required"`
+	AuthRequired []string         `yaml:"authRequired"`
 	Parameters   tools.Parameters `yaml:"parameters"`
 }
 
