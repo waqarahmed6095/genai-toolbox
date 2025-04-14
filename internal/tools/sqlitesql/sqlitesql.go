@@ -15,7 +15,6 @@
 package sqlitesql
 
 import (
-    "context"
     "database/sql"
     "fmt"
 
@@ -55,13 +54,13 @@ func (cfg Config) ToolConfigKind() string {
 func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
     // verify source exists
     rawS, ok := srcs[cfg.Source]
-    if !ok {
+    if (!ok) {
         return nil, fmt.Errorf("no source named %q configured", cfg.Source)
     }
 
     // verify the source is compatible
     s, ok := rawS.(compatibleSource)
-    if !ok {
+    if (!ok) {
         return nil, fmt.Errorf("invalid source for %q tool: source kind must be one of %q", ToolKind, compatibleSources)
     }
 
@@ -166,4 +165,20 @@ func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
     }
 
     return result, nil
+}
+
+func (t Tool) ParseParams(data map[string]any, claims map[string]map[string]any) (tools.ParamValues, error) {
+    return tools.ParseParams(t.Parameters, data, claims)
+}
+
+func (t Tool) Manifest() tools.Manifest {
+    return t.manifest
+}
+
+func (t Tool) McpManifest() tools.McpManifest {
+    return t.mcpManifest
+}
+
+func (t Tool) Authorized(verifiedAuthServices []string) bool {
+    return tools.IsAuthorized(t.AuthRequired, verifiedAuthServices)
 }
