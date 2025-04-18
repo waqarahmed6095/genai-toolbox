@@ -15,52 +15,52 @@
 package sqlite_test
 
 import (
-    "testing"
+	"testing"
 
-    yaml "github.com/goccy/go-yaml"
-    "github.com/google/go-cmp/cmp"
-    "github.com/googleapis/genai-toolbox/internal/server"
-    "github.com/googleapis/genai-toolbox/internal/sources"
-    "github.com/googleapis/genai-toolbox/internal/sources/sqlite"
-    "github.com/googleapis/genai-toolbox/internal/testutils"
+	yaml "github.com/goccy/go-yaml"
+	"github.com/google/go-cmp/cmp"
+	"github.com/googleapis/genai-toolbox/internal/server"
+	"github.com/googleapis/genai-toolbox/internal/sources"
+	"github.com/googleapis/genai-toolbox/internal/sources/sqlite"
+	"github.com/googleapis/genai-toolbox/internal/testutils"
 )
 
 func TestParseFromYamlSQLite(t *testing.T) {
-    tcs := []struct {
-        desc string
-        in   string
-        want server.SourceConfigs
-    }{
-        {
-            desc: "basic example",
-            in: `
+	tcs := []struct {
+		desc string
+		in   string
+		want server.SourceConfigs
+	}{
+		{
+			desc: "basic example",
+			in: `
             sources:
                 my-sqlite-db:
                     kind: sqlite
                     database: /path/to/database.db
             `,
-            want: map[string]sources.SourceConfig{
-                "my-sqlite-db": sqlite.Config{
-                    Name:     "my-sqlite-db",
-                    Kind:     sqlite.SourceKind,
-                    Database: "/path/to/database.db",
-                },
-            },
-        },
-    }
-    for _, tc := range tcs {
-        t.Run(tc.desc, func(t *testing.T) {
-            got := struct {
-                Sources server.SourceConfigs `yaml:"sources"`
-            }{}
-            // Parse contents
-            err := yaml.Unmarshal(testutils.FormatYaml(tc.in), &got)
-            if err != nil {
-                t.Fatalf("unable to unmarshal: %s", err)
-            }
-            if !cmp.Equal(tc.want, got.Sources) {
-                t.Fatalf("incorrect parse: want %v, got %v", tc.want, got.Sources)
-            }
-        })
-    }
+			want: map[string]sources.SourceConfig{
+				"my-sqlite-db": sqlite.Config{
+					Name:     "my-sqlite-db",
+					Kind:     sqlite.SourceKind,
+					Database: "/path/to/database.db",
+				},
+			},
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := struct {
+				Sources server.SourceConfigs `yaml:"sources"`
+			}{}
+			// Parse contents
+			err := yaml.Unmarshal(testutils.FormatYaml(tc.in), &got)
+			if err != nil {
+				t.Fatalf("unable to unmarshal: %s", err)
+			}
+			if !cmp.Equal(tc.want, got.Sources) {
+				t.Fatalf("incorrect parse: want %v, got %v", tc.want, got.Sources)
+			}
+		})
+	}
 }
