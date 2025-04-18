@@ -98,22 +98,6 @@ type Tool struct {
     mcpManifest  tools.McpManifest
 }
 
-func (t Tool) ToolKind() string {
-    return ToolKind
-}
-
-func (t Tool) GetManifest() tools.Manifest {
-    return t.manifest
-}
-
-func (t Tool) GetMcpManifest() tools.McpManifest {
-    return t.mcpManifest
-}
-
-func (t Tool) AuthenticationRequired() []string {
-    return t.AuthRequired
-}
-
 func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
     // Execute the SQL query with parameters
     rows, err := t.Db.Query(t.Statement, params.AsSlice()...)
