@@ -13,8 +13,6 @@ It's compatible with any of the following sources:
 
 - [sqlite](../sources/sqlite.md)
 
-## Parameters
-
 SQLite uses the `?` placeholder for parameters in SQL statements. Parameters are
 bound in the order they are provided.
 
