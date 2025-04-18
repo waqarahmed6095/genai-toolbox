@@ -1,6 +1,5 @@
 ---
 title: "SQLite SQL"
-linkTitle: "SQLite SQL"
 type: docs
 weight: 1
 description: >
