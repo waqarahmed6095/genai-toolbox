@@ -49,7 +49,7 @@ sources:
 
 ## Reference
 
-### Configuration Options
+### Configuration Fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
