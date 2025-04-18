@@ -22,20 +22,6 @@ The statement field supports any valid SQLite SQL statement, including `SELECT`,
 
 ```yaml
 tools:
-  get-user:
-    kind: sqlite-sql
-    source: my-sqlite-db
-    description: Get user information by ID
-    parameters:
-      - name: id
-        type: integer
-        description: The user ID to look up
-    statement: SELECT * FROM users WHERE id = ?
-```
-
-Multiple parameters:
-```yaml
-tools:
   search-users:
     kind: sqlite-sql
     source: my-sqlite-db
