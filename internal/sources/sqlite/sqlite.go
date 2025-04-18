@@ -79,11 +79,8 @@ func initSQLiteConnection(ctx context.Context, tracer trace.Tracer, name, dbPath
     ctx, span := sources.InitConnectionSpan(ctx, tracer, SourceKind, name)
     defer span.End()
 
-    // Create dsn - for SQLite this is just the path to the database file
-    dsn := dbPath
-
     // Open database connection
-    db, err := sql.Open("sqlite", dsn)
+    db, err := sql.Open("sqlite", dbPath)
     if err != nil {
         return nil, fmt.Errorf("sql.Open: %w", err)
     }
