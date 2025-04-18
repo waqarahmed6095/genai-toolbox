@@ -128,8 +128,8 @@ func sseHandler(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	// https scheme formatting if (forwarded) request is a TLS request
 	proto := r.Header.Get("X-Forwarded-Proto")
-	if (proto == "") {
-		if  r.TLS == nil {
+	if proto == "" {
+		if r.TLS == nil {
 			proto = "http"
 		} else {
 			proto = "https"

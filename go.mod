@@ -32,6 +32,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0
 	golang.org/x/oauth2 v0.29.0
 	google.golang.org/api v0.228.0
+	modernc.org/sqlite v1.37.0
 )
 
 require (
@@ -107,5 +108,4 @@ require (
 	modernc.org/libc v1.62.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.9.1 // indirect
-	modernc.org/sqlite v1.37.0 // indirect
 )
