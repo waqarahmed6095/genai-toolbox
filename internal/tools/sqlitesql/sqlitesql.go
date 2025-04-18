@@ -112,19 +112,16 @@ func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
 		return nil, fmt.Errorf("unable to get column names: %w", err)
 	}
 
-	values := make([]interface{}, len(cols))
-		valuePtrs := make([]interface{}, len(cols))
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
+	values := make([]any, len(cols))
+	valuePtrs := make([]any, len(cols))
+	for i := range values {
+		valuePtrs[i] = &values[i]
+	}
 	// Prepare the result slice
 	var result []any
 
 	// Iterate through the rows
 	for rows.Next() {
-		// Create a slice of interface{} to hold each row's values
-		
-
 		// Scan the row into the value pointers
 		if err := rows.Scan(valuePtrs...); err != nil {
 			return nil, fmt.Errorf("unable to scan row: %w", err)

@@ -47,3 +47,4 @@ run:
     - alloydb_ai_nl
     - bigtable
     - bigquery
+    - sqlite
