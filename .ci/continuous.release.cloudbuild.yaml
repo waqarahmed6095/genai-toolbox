@@ -126,6 +126,79 @@ steps:
         #!/usr/bin/env bash
         gcloud storage cp toolbox.windows.amd64 gs://$_BUCKET_NAME/$REF_NAME/windows/amd64/toolbox
 
+  # SQLite Build Steps
+  - id: "build-sqlite-linux-amd64"
+    name: golang:1
+    waitFor: 
+      - "install-dependencies"
+    env:
+      - 'GOPATH=/gopath'
+      - 'CGO_ENABLED=1'
+    volumes:
+      - name: 'go'
+        path: '/gopath'
+    script: |
+        #!/usr/bin/env bash
+        apt-get update && apt-get install -y gcc
+        GOOS=linux GOARCH=amd64 \
+          go build -tags sqlite -o sqlite.linux.amd64 ./cmd/sqlite
+
+  - id: "store-sqlite-linux-amd64"
+    name: "gcr.io/cloud-builders/gcloud:latest"
+    waitFor:
+      - "build-sqlite-linux-amd64"
+    script: |
+        #!/usr/bin/env bash
+        gcloud storage cp sqlite.linux.amd64 gs://$_BUCKET_NAME/$REF_NAME/linux/amd64/sqlite
+
+  - id: "build-sqlite-darwin-arm64"
+    name: golang:1
+    waitFor: 
+      - "install-dependencies"
+    env:
+      - 'GOPATH=/gopath'
+      - 'CGO_ENABLED=1'
+    volumes:
+      - name: 'go'
+        path: '/gopath'
+    script: |
+        #!/usr/bin/env bash
+        apt-get update && apt-get install -y gcc
+        GOOS=darwin GOARCH=arm64 \
+          go build -tags sqlite -o sqlite.darwin.arm64 ./cmd/sqlite
+
+  - id: "store-sqlite-darwin-arm64"
+    name: "gcr.io/cloud-builders/gcloud:latest"
+    waitFor:
+      - "build-sqlite-darwin-arm64"
+    script: |
+        #!/usr/bin/env bash
+        gcloud storage cp sqlite.darwin.arm64 gs://$_BUCKET_NAME/$REF_NAME/darwin/arm64/sqlite
+
+  - id: "build-sqlite-windows-amd64"
+    name: golang:1
+    waitFor: 
+      - "install-dependencies"
+    env:
+      - 'GOPATH=/gopath'
+      - 'CGO_ENABLED=1'
+    volumes:
+      - name: 'go'
+        path: '/gopath'
+    script: |
+        #!/usr/bin/env bash
+        apt-get update && apt-get install -y gcc
+        GOOS=windows GOARCH=amd64 \
+          go build -tags sqlite -o sqlite.windows.amd64 ./cmd/sqlite
+
+  - id: "store-sqlite-windows-amd64"
+    name: "gcr.io/cloud-builders/gcloud:latest"
+    waitFor:
+      - "build-sqlite-windows-amd64"
+    script: |
+        #!/usr/bin/env bash
+        gcloud storage cp sqlite.windows.amd64 gs://$_BUCKET_NAME/$REF_NAME/windows/amd64/sqlite
+
 options:
   automapSubstitutions: true
   dynamicSubstitutions: true
