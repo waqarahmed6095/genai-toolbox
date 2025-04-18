@@ -55,8 +55,6 @@ tools:
 
 ## Reference
 
-### Configuration Options
-
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | kind | string | Yes | Must be "sqlite-sql" |
