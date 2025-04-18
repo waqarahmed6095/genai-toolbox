@@ -64,23 +64,3 @@ tools:
 | description | string | Yes | Description of what the tool does |
 | parameters | array | No | List of parameters for the SQL statement |
 | statement | string | Yes | The SQL statement to execute |
-
-### Parameter Types
-
-The following parameter types are supported:
-- `string`
-- `integer`
-- `float`
-- `boolean`
-- `array`
-- `object`
-
-### SQL Statement
-
-The statement field supports any valid SQLite SQL statement, including:
-- SELECT queries
-- INSERT statements
-- UPDATE statements
-- DELETE statements
-- CREATE/ALTER/DROP table statements
-- Other DDL statements
