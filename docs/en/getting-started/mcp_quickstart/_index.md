@@ -186,6 +186,13 @@ In this section, we will download Toolbox, configure our tools in a
             type: string
             description: The ID of the hotel to cancel.
         statement: UPDATE hotels SET booked = B'0' WHERE id = $1;
+   toolsets:
+      my-toolset:
+        - search-hotels-by-name
+        - search-hotels-by-location
+        - book-hotel
+        - update-hotel
+        - cancel-hotel
     ```
     For more info on tools, check out the [Tools](../../resources/tools/_index.md) section.
 
@@ -205,7 +212,7 @@ In this section, we will download Toolbox, configure our tools in a
 
 1. Type `y` when it asks to install the inspector package.
 
-1. It should show the following when the MCP Inspector is up and runnning:
+1. It should show the following when the MCP Inspector is up and running:
 
     ```bash
     🔍 MCP Inspector is up and running at http://127.0.0.1:5173 🚀
