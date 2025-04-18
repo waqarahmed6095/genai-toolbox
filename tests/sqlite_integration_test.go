@@ -95,7 +95,7 @@ func TestSQLiteConnection(t *testing.T) {
     }
 }
 
-func TestSQLiteQuery(t *testing.T) {
+func TestSQLiteToolEndpoint(t *testing.T) {
     cleanup, err := SetupSQLiteTestDB(t)
     if err != nil {
         t.Fatal(err)
