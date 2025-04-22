@@ -40,7 +40,6 @@ tools:
 
 | **field**   |                  **type**                  | **required** | **description**                                                                                  |
 |-------------|:------------------------------------------:|:------------:|--------------------------------------------------------------------------------------------------|
-
 | kind | string | Yes | Must be "sqlite-sql" |
 | source | string | Yes | Name of a SQLite source configuration |
 | description | string | Yes | Description of what the tool does |
