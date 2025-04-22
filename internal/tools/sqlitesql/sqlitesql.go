@@ -117,9 +117,9 @@ func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
 	for i := range values {
 		valuePtrs[i] = &values[i]
 	}
+
 	// Prepare the result slice
 	var result []any
-
 	// Iterate through the rows
 	for rows.Next() {
 		// Scan the row into the value pointers
@@ -140,6 +140,10 @@ func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
 			rowMap[col] = val
 		}
 		result = append(result, rowMap)
+	}
+
+	if err = results.Close(); err != nil {
+		return nil, fmt.Errorf("unable to close rows: %w", err)
 	}
 
 	if err = rows.Err(); err != nil {
