@@ -17,152 +17,134 @@
 package tests
 
 import (
-    "context"
-    "database/sql"
-    "fmt"
-    "os"
-    "regexp"
-    "strings"
-    "testing"
-    "time"
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+	"regexp"
+	"strings"
+	"testing"
+	"time"
 
-    "github.com/google/uuid"
+	"github.com/google/uuid"
 )
 
 var (
-    SQLITE_SOURCE_KIND = "sqlite"
-    SQLITE_TOOL_KIND   = "sqlite-sql"
-    SQLITE_DATABASE    = os.Getenv("SQLITE_DATABASE")
+	SQLITE_SOURCE_KIND = "sqlite"
+	SQLITE_TOOL_KIND   = "sqlite-sql"
+	SQLITE_DATABASE    = os.Getenv("SQLITE_DATABASE")
 )
 
 func getSQLiteVars(t *testing.T) map[string]any {
-    return map[string]any{
-        "kind":     SQLITE_SOURCE_KIND,
-        "database": SQLITE_DATABASE,
-    }
+	return map[string]any{
+		"kind":     SQLITE_SOURCE_KIND,
+		"database": SQLITE_DATABASE,
+	}
 }
 
-// SetupSQLiteTestDB creates a temporary SQLite database for testing
-func SetupSQLiteTestDB(t *testing.T) (func(t *testing.T), error) {
-    if SQLITE_DATABASE == "" {
-        // Create a temporary database file
-        tmpFile, err := os.CreateTemp("", "test-*.db")
-        if err != nil {
-            return nil, fmt.Errorf("failed to create temp file: %v", err)
-        }
-        SQLITE_DATABASE = tmpFile.Name()
-    }
+func initSQLiteDb(t *testing.T, sqliteDb string) (*sql.DB, func(t *testing.T), string, error) {
+	if sqliteDb == "" {
+		// Create a temporary database file
+		tmpFile, err := os.CreateTemp("", "test-*.db")
+		if err != nil {
+			return nil, nil, "", fmt.Errorf("failed to create temp file: %v", err)
+		}
+		sqliteDb = tmpFile.Name()
+	}
 
-    // Open database connection
-    db, err := sql.Open("sqlite", SQLITE_DATABASE)
-    if err != nil {
-        return nil, fmt.Errorf("failed to open database: %v", err)
-    }
-    defer db.Close()
+	// Open database connection
+	db, err := sql.Open("sqlite", sqliteDb)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("failed to open database: %v", err)
+	}
 
-    // Create test table
-    _, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS test_table (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            value INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    `)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create test table: %v", err)
-    }
+	cleanup := func(t *testing.T) {
+		if err := os.Remove(sqliteDb); err != nil {
+			t.Errorf("Failed to remove test database: %s", err)
+		}
+	}
 
-    cleanup := func(t *testing.T) {
-        if err := os.Remove(SQLITE_DATABASE); err != nil {
-            t.Logf("Failed to remove test database: %v", err)
-        }
-    }
-
-    return cleanup, nil
+	return db, cleanup, sqliteDb, nil
 }
 
-func TestSQLiteConnection(t *testing.T) {
-    cleanup, err := SetupSQLiteTestDB(t)
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer cleanup(t)
+// setupSQLiteTestDB creates a temporary SQLite database for testing
+func setupSQLiteTestDB(t *testing.T, ctx context.Context, db *sql.DB, createStatement string, insertStatement string, tableName string, params []any) {
+	// Create test table
+	_, err := db.ExecContext(ctx, createStatement)
+	if err != nil {
+		t.Fatalf("unable to connect to create test table %s: %s", tableName, err)
+	}
 
-    err = RunSourceConnectionTest(t, getSQLiteVars(t), SQLITE_TOOL_KIND)
-    if err != nil {
-        t.Fatalf("Connection test failure: %s", err)
-    }
+	_, err = db.ExecContext(ctx, insertStatement, params...)
+	if err != nil {
+		t.Fatalf("unable to insert test data: %s", err)
+	}
+}
+
+func getSQLiteParamToolInfo(tableName string) (string, string, string, []any) {
+	create_statement := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY, name TEXT);", tableName)
+	insert_statement := fmt.Sprintf("INSERT INTO %s (name) VALUES (?), (?), (?);", tableName)
+	tool_statement := fmt.Sprintf("SELECT * FROM %s WHERE id = ? OR name = ?;", tableName)
+	params := []any{"Alice", "Jane", "Sid"}
+	return create_statement, insert_statement, tool_statement, params
+}
+
+func getSQLiteAuthToolInfo(tableName string) (string, string, string, []any) {
+	create_statement := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT)", tableName)
+	insert_statement := fmt.Sprintf("INSERT INTO %s (name, email) VALUES (?, ?), (?,?) RETURNING id, name, email;", tableName)
+	tool_statement := fmt.Sprintf("SELECT name FROM %s WHERE email = ?;", tableName)
+	params := []any{"Alice", SERVICE_ACCOUNT_EMAIL, "Jane", "janedoe@gmail.com"}
+	return create_statement, insert_statement, tool_statement, params
 }
 
 func TestSQLiteToolEndpoint(t *testing.T) {
-    cleanup, err := SetupSQLiteTestDB(t)
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer cleanup(t)
+	db, teardownDb, sqliteDb, err := initSQLiteDb(t, SQLITE_DATABASE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownDb(t)
+	defer db.Close()
 
-    testID := uuid.New().String()
-    timestamp := time.Now().UTC()
+	sourceConfig := getSQLiteVars(t)
+	sourceConfig["database"] = sqliteDb
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 
-    testCases := []struct {
-        name     string
-        config   map[string]any
-        validate func(t *testing.T, res []any)
-    }{
-        {
-            name: "insert and select",
-            config: map[string]any{
-                "kind":        SQLITE_TOOL_KIND,
-                "name":        "test-sqlite-insert",
-                "source":      "test-sqlite",
-                "description": "Test SQLite insert",
-                "statement": `INSERT INTO test_table (name, value) VALUES (?, ?) 
-                            RETURNING id, name, value, created_at`,
-                "parameters": []map[string]any{
-                    {
-                        "name":        "name",
-                        "type":        "string",
-                        "description": "Name to insert",
-                    },
-                    {
-                        "name":        "value",
-                        "type":        "integer",
-                        "description": "Value to insert",
-                    },
-                },
-            },
-            validate: func(t *testing.T, res []any) {
-                if len(res) != 1 {
-                    t.Fatalf("expected 1 result, got %d", len(res))
-                }
-                row := res[0].(map[string]any)
-                if row["name"] != testID {
-                    t.Errorf("expected name %s, got %s", testID, row["name"])
-                }
-                if row["value"] != int64(42) {
-                    t.Errorf("expected value 42, got %v", row["value"])
-                }
-            },
-        },
-    }
+	var args []string
 
-    sourceConfig := map[string]any{
-        "kind":     SQLITE_SOURCE_KIND,
-        "name":     "test-sqlite",
-        "database": SQLITE_DATABASE,
-    }
+	// create table name with UUID
+	tableNameParam := "param_table_" + strings.Replace(uuid.New().String(), "-", "", -1)
+	tableNameAuth := "auth_table_" + strings.Replace(uuid.New().String(), "-", "", -1)
 
-    for _, tc := range testCases {
-        t.Run(tc.name, func(t *testing.T) {
-            res, err := RunTest(t, sourceConfig, tc.config, map[string]any{
-                "name":  testID,
-                "value": 42,
-            })
-            if err != nil {
-                t.Fatalf("Test failure: %s", err)
-            }
-            tc.validate(t, res)
-        })
-    }
+	// set up data for param tool
+	create_statement1, insert_statement1, tool_statement1, params1 := getSQLiteParamToolInfo(tableNameParam)
+	setupSQLiteTestDB(t, ctx, db, create_statement1, insert_statement1, tableNameParam, params1)
+
+	// set up data for auth tool
+	create_statement2, insert_statement2, tool_statement2, params2 := getSQLiteAuthToolInfo(tableNameAuth)
+	setupSQLiteTestDB(t, ctx, db, create_statement2, insert_statement2, tableNameAuth, params2)
+
+	// Write config into a file and pass it to command
+	toolsFile := GetToolsConfig(sourceConfig, SQLITE_TOOL_KIND, tool_statement1, tool_statement2)
+
+	cmd, cleanup, err := StartCmd(ctx, toolsFile, args...)
+	if err != nil {
+		t.Fatalf("command initialization returned an error: %s", err)
+	}
+	defer cleanup()
+
+	waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	out, err := cmd.WaitForString(waitCtx, regexp.MustCompile(`Server ready to serve`))
+	if err != nil {
+		t.Logf("toolbox command logs: \n%s", out)
+		t.Fatalf("toolbox didn't start successfully: %s", err)
+	}
+
+	RunToolGetTest(t)
+
+	select_1_want := "[{\"1\":1}]"
+	fail_invocation_want := `{"jsonrpc":"2.0","id":"invoke-fail-tool","result":{"content":[{"type":"text","text":"unable to execute query: SQL logic error: near SELEC: syntax error (1)"}],"isError":true}}`
+	RunToolInvokeTest(t, select_1_want)
+	RunMCPToolCallMethod(t, fail_invocation_want)
 }

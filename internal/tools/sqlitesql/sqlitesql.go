@@ -15,6 +15,7 @@
 package sqlitesql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -90,17 +91,18 @@ var _ tools.Tool = Tool{}
 type Tool struct {
 	Name         string           `yaml:"name"`
 	Kind         string           `yaml:"kind"`
-	Parameters   tools.Parameters `yaml:"parameters"`
-	Statement    string           `yaml:"statement"`
 	AuthRequired []string         `yaml:"authRequired"`
-	Db           *sql.DB
-	manifest     tools.Manifest
-	mcpManifest  tools.McpManifest
+	Parameters   tools.Parameters `yaml:"parameters"`
+
+	Db          *sql.DB
+	Statement   string `yaml:"statement"`
+	manifest    tools.Manifest
+	mcpManifest tools.McpManifest
 }
 
-func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
+func (t Tool) Invoke(ctx context.Context, params tools.ParamValues) ([]any, error) {
 	// Execute the SQL query with parameters
-	rows, err := t.Db.Query(t.Statement, params.AsSlice()...)
+	rows, err := t.Db.QueryContext(ctx, t.Statement, params.AsSlice()...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -142,7 +144,7 @@ func (t Tool) Invoke(params tools.ParamValues) ([]any, error) {
 		result = append(result, rowMap)
 	}
 
-	if err = results.Close(); err != nil {
+	if err = rows.Close(); err != nil {
 		return nil, fmt.Errorf("unable to close rows: %w", err)
 	}
 

@@ -294,14 +294,15 @@ steps:
     entrypoint: /bin/bash
     env:
       - "GOPATH=/gopath"
-      - "CGO_ENABLED=1"
+      - "SERVICE_ACCOUNT_EMAIL=$SERVICE_ACCOUNT_EMAIL"
     volumes:
       - name: "go"
         path: "/gopath"
-    script: |
-      #!/usr/bin/env bash
-      apt-get update && apt-get install -y gcc
-      go test -race -v -tags=integration,sqlite ./tests
+    secretEnv: ["CLIENT_ID"]
+    args:
+      - -c
+      - |
+        go test -race -v -tags=integration,sqlite ./tests
 
 availableSecrets:
   secretManager:
